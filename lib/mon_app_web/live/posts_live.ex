@@ -1117,6 +1117,28 @@ defmodule MonAppWeb.PostsLive do
   end
 
   @impl true
+  def handle_info({:friend_request_received, _}, socket) do
+    # Nouvelle demande d'ami reçue - mettre à jour le compteur
+    user_id = socket.assigns.current_user.id
+    pending_count = Social.count_pending_requests(user_id)
+    {:noreply, assign(socket, :pending_requests_count, pending_count)}
+  end
+
+  @impl true
+  def handle_info({:friend_request_updated, _}, socket) do
+    # Demande acceptée/refusée - mettre à jour le compteur
+    user_id = socket.assigns.current_user.id
+    pending_count = Social.count_pending_requests(user_id)
+    {:noreply, assign(socket, :pending_requests_count, pending_count)}
+  end
+
+  @impl true
+  def handle_info({:friend_request_accepted, _}, socket) do
+    # Notre demande a été acceptée - rafraîchir la liste d'amis si nécessaire
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end

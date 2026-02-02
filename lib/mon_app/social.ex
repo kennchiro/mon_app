@@ -83,9 +83,20 @@ defmodule MonApp.Social do
 
     case existing do
       nil ->
-        %Friendship{}
-        |> Friendship.changeset(%{user_id: user_id, friend_id: friend_id})
-        |> Repo.insert()
+        result =
+          %Friendship{}
+          |> Friendship.changeset(%{user_id: user_id, friend_id: friend_id})
+          |> Repo.insert()
+
+        case result do
+          {:ok, friendship} ->
+            # Notifier le destinataire de la nouvelle demande
+            broadcast_friend_event(friend_id, :friend_request_received)
+            {:ok, friendship}
+
+          error ->
+            error
+        end
 
       %{status: "pending", friend_id: ^user_id} ->
         # L'autre a déjà envoyé une demande, on accepte automatiquement
@@ -102,10 +113,22 @@ defmodule MonApp.Social do
       nil ->
         {:error, :not_found}
 
-      %{friend_id: ^user_id, status: "pending"} = friendship ->
-        friendship
-        |> Friendship.changeset(%{status: "accepted"})
-        |> Repo.update()
+      %{friend_id: ^user_id, user_id: requester_id, status: "pending"} = friendship ->
+        result =
+          friendship
+          |> Friendship.changeset(%{status: "accepted"})
+          |> Repo.update()
+
+        case result do
+          {:ok, updated} ->
+            # Notifier les deux parties
+            broadcast_friend_event(user_id, :friend_request_updated)
+            broadcast_friend_event(requester_id, :friend_request_accepted)
+            {:ok, updated}
+
+          error ->
+            error
+        end
 
       _ ->
         {:error, :unauthorized}
@@ -119,7 +142,17 @@ defmodule MonApp.Social do
         {:error, :not_found}
 
       %{friend_id: ^user_id, status: "pending"} = friendship ->
-        Repo.delete(friendship)
+        result = Repo.delete(friendship)
+
+        case result do
+          {:ok, _} ->
+            # Mettre à jour le compteur local
+            broadcast_friend_event(user_id, :friend_request_updated)
+            result
+
+          error ->
+            error
+        end
 
       _ ->
         {:error, :unauthorized}
@@ -187,5 +220,15 @@ defmodule MonApp.Social do
       select: count(f.id)
     )
     |> Repo.one()
+  end
+
+  # ============== PUBSUB ==============
+
+  defp broadcast_friend_event(user_id, event) do
+    Phoenix.PubSub.broadcast(
+      MonApp.PubSub,
+      "user:#{user_id}",
+      {event, user_id}
+    )
   end
 end

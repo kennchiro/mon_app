@@ -66,6 +66,135 @@ const Hooks = {
     }
   },
 
+  // Format time to local timezone (always HH:MM for messages)
+  LocalTime: {
+    mounted() {
+      this.formatTime()
+    },
+    updated() {
+      this.formatTime()
+    },
+    formatTime() {
+      const iso = this.el.dataset.time
+      if (iso) {
+        const date = new Date(iso + "Z") // Ajouter Z pour indiquer UTC
+        // Toujours afficher HH:MM en heure locale
+        const formatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        this.el.textContent = formatted
+      }
+    }
+  },
+
+  // Format time compact (for conversation list - Messenger style: "3h", "2j")
+  LocalTimeCompact: {
+    mounted() {
+      this.formatTime()
+    },
+    updated() {
+      this.formatTime()
+    },
+    formatTime() {
+      const iso = this.el.dataset.time
+      if (iso) {
+        const date = new Date(iso + "Z")
+        const now = new Date()
+        const diffMs = now - date
+        const diffSecs = Math.floor(diffMs / 1000)
+        const diffMins = Math.floor(diffSecs / 60)
+        const diffHours = Math.floor(diffMins / 60)
+        const diffDays = Math.floor(diffHours / 24)
+
+        let formatted
+        if (diffMins < 1) {
+          formatted = "1m"
+        } else if (diffMins < 60) {
+          formatted = `${diffMins}m`
+        } else if (diffHours < 24) {
+          formatted = `${diffHours}h`
+        } else if (diffDays < 7) {
+          formatted = `${diffDays}j`
+        } else {
+          formatted = date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+        }
+        this.el.textContent = formatted
+      }
+    }
+  },
+
+  // Format time relative (for conversation list)
+  LocalTimeRelative: {
+    mounted() {
+      this.formatTime()
+    },
+    updated() {
+      this.formatTime()
+    },
+    formatTime() {
+      const iso = this.el.dataset.time
+      if (iso) {
+        const date = new Date(iso + "Z")
+        const now = new Date()
+
+        // Comparer les dates (sans l'heure)
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const diffDays = Math.floor((todayOnly - dateOnly) / (1000 * 60 * 60 * 24))
+
+        let formatted
+        if (diffDays === 0) {
+          // Aujourd'hui - afficher HH:MM
+          formatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+        } else if (diffDays === 1) {
+          formatted = "Hier"
+        } else if (diffDays < 7) {
+          const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam']
+          formatted = days[date.getDay()]
+        } else {
+          formatted = date.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+        }
+        this.el.textContent = formatted
+      }
+    }
+  },
+
+  // Format date for dividers
+  LocalDate: {
+    mounted() {
+      this.formatDate()
+    },
+    updated() {
+      this.formatDate()
+    },
+    formatDate() {
+      const iso = this.el.dataset.date
+      if (iso) {
+        const date = new Date(iso + "Z")
+        const now = new Date()
+
+        // Comparer les dates (sans l'heure)
+        const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+        const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const diffDays = Math.floor((todayOnly - dateOnly) / (1000 * 60 * 60 * 24))
+
+        let formatted
+        if (diffDays === 0) {
+          formatted = "Aujourd'hui"
+        } else if (diffDays === 1) {
+          formatted = "Hier"
+        } else if (diffDays < 7) {
+          // Cette semaine - afficher le jour complet
+          const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
+          formatted = days[date.getDay()]
+        } else {
+          // Plus ancien - afficher la date complète
+          const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+          formatted = `${date.getDate()} ${months[date.getMonth()]}${date.getFullYear() !== now.getFullYear() ? ' ' + date.getFullYear() : ''}`
+        }
+        this.el.textContent = formatted
+      }
+    }
+  },
+
   // Chat input with auto-resize and Enter to send
   ChatInput: {
     mounted() {
@@ -78,7 +207,10 @@ const Hooks = {
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault()
           const form = this.el.closest("form")
-          if (form && this.el.value.trim() !== "") {
+          // Vérifier s'il y a du texte ou des images en preview
+          const hasText = this.el.value.trim() !== ""
+          const hasImages = document.querySelectorAll('[phx-click="cancel-chat-upload"]').length > 0
+          if (form && (hasText || hasImages)) {
             form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
           }
         }
@@ -117,7 +249,17 @@ const liveSocket = new LiveSocket("/live", Socket, {
 
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
-window.addEventListener("phx:page-loading-start", _info => topbar.show(300))
+window.addEventListener("phx:page-loading-start", info => {
+  // Only show topbar for navigation events, not for form validation/uploads
+  // kind can be: "redirect", "patch", "initial"
+  // For form changes (like upload validation), kind is usually "patch" but triggered very quickly
+  // We use a longer delay to avoid flashing for quick operations
+  if (info.detail?.kind === "redirect") {
+    topbar.show(100)
+  } else {
+    topbar.show(500)
+  }
+})
 window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
 // connect if there are any LiveViews on the page

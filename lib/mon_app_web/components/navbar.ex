@@ -2,6 +2,21 @@ defmodule MonAppWeb.Navbar do
   use Phoenix.Component
   use MonAppWeb, :verified_routes
 
+  def logout_link(assigns) do
+    ~H"""
+    <form action={~p"/auth/logout"} method="post" class="contents">
+      <input type="hidden" name="_method" value="delete" />
+      <input type="hidden" name="_csrf_token" value={Phoenix.Controller.get_csrf_token()} />
+      <button type="submit" class="flex items-center gap-2 w-full text-error hover:bg-base-200 px-4 py-2 rounded-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+        Déconnexion
+      </button>
+    </form>
+    """
+  end
+
   attr :current_user, :map, required: true
   attr :current_path, :string, default: "/"
   attr :pending_requests_count, :integer, default: 0
@@ -35,7 +50,7 @@ defmodule MonAppWeb.Navbar do
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
             </svg>
-            <span :if={@pending_requests_count > 0} class="absolute -top-1 -right-1 badge badge-error badge-sm text-white">
+            <span :if={@pending_requests_count > 0} class="absolute -top-1 -right-1 badge badge-primary badge-sm text-primary-content">
               {@pending_requests_count}
             </span>
           </a>
@@ -105,12 +120,7 @@ defmodule MonAppWeb.Navbar do
               </a>
             </li>
             <li>
-              <a href={~p"/auth/logout"} data-method="delete" class="text-error">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Déconnexion
-              </a>
+              <.logout_link />
             </li>
           </ul>
         </div>

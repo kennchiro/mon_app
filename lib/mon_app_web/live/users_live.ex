@@ -198,6 +198,21 @@ defmodule MonAppWeb.UsersLive do
   end
 
   @impl true
+  def handle_info({:friend_request_received, _}, socket) do
+    {:noreply, load_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:friend_request_updated, _}, socket) do
+    {:noreply, load_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:friend_request_accepted, _}, socket) do
+    {:noreply, load_data(socket)}
+  end
+
+  @impl true
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
