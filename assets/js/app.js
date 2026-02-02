@@ -210,19 +210,23 @@ const Hooks = {
         const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate())
         const diffDays = Math.floor((todayOnly - dateOnly) / (1000 * 60 * 60 * 24))
 
+        const days = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi']
+        const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+
         let formatted
         if (diffDays === 0) {
           formatted = "Aujourd'hui"
         } else if (diffDays === 1) {
           formatted = "Hier"
         } else if (diffDays < 7) {
-          // Cette semaine - afficher le jour complet
-          const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
-          formatted = days[date.getDay()]
+          // Cette semaine - afficher le jour complet avec majuscule
+          formatted = days[date.getDay()].charAt(0).toUpperCase() + days[date.getDay()].slice(1)
+        } else if (diffDays < 365 && date.getFullYear() === now.getFullYear()) {
+          // Cette année - afficher "jour mois" ex: "5 janvier"
+          formatted = `${date.getDate()} ${months[date.getMonth()]}`
         } else {
-          // Plus ancien - afficher la date complète
-          const months = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
-          formatted = `${date.getDate()} ${months[date.getMonth()]}${date.getFullYear() !== now.getFullYear() ? ' ' + date.getFullYear() : ''}`
+          // Année différente - afficher "jour mois année"
+          formatted = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`
         }
         this.el.textContent = formatted
       }

@@ -1,12 +1,9 @@
 defmodule MonAppWeb.ConversationsLive do
   use MonAppWeb, :live_view
 
-  import Ecto.Query
-
   alias MonApp.Chat
   alias MonApp.Chat.Conversation
   alias MonApp.Social
-  alias MonApp.Repo
   alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
@@ -312,7 +309,6 @@ defmodule MonAppWeb.ConversationsLive do
         {conversation.name, nil}
       else
         other_user = Conversation.other_user(conversation, user.id)
-        notify_messages_seen(conversation_id, user.id, other_user.id)
         {other_user.name, other_user}
       end
 
@@ -733,13 +729,10 @@ defmodule MonAppWeb.ConversationsLive do
           message
         end
         # Si le message vient de quelqu'un d'autre, le marquer comme vu
+        # mark_conversation_as_seen broadcast automatiquement aux expéditeurs
         socket =
           if message.sender_id != user.id do
             Chat.mark_conversation_as_seen(active_conversation.id, user.id)
-            # Pour les 1-à-1, notifier que les messages sont vus
-            if !active_conversation.is_group do
-              notify_messages_seen(active_conversation.id, user.id, message.sender_id)
-            end
             # Rafraîchir le compteur après avoir marqué comme vu
             new_unread_count = Chat.count_total_unread(user.id)
             assign(socket, :unread_count, new_unread_count)
@@ -897,24 +890,6 @@ defmodule MonAppWeb.ConversationsLive do
   end
 
   # ============== HELPERS ==============
-
-  defp notify_messages_seen(conv_id, _user_id, other_user_id) do
-    message_ids =
-      MonApp.Chat.Message
-      |> where([m], m.conversation_id == ^conv_id)
-      |> where([m], m.sender_id == ^other_user_id)
-      |> where([m], m.status == "seen")
-      |> select([m], m.id)
-      |> Repo.all()
-
-    if message_ids != [] do
-      Phoenix.PubSub.broadcast(
-        MonApp.PubSub,
-        "user:#{other_user_id}",
-        {:messages_seen, message_ids}
-      )
-    end
-  end
 
   defp save_chat_images(socket, message_id) do
     consume_uploaded_entries(socket, :chat_images, fn %{path: path}, entry ->

@@ -172,18 +172,16 @@ defmodule MonAppWeb.ChatComponents do
     ~H"""
     <div class="flex flex-col gap-2 p-4">
       <%= for {date, messages} <- @messages_with_dates do %>
-        <!-- Séparateur de date -->
-        <div class="flex items-center justify-center my-3">
-          <div class="flex-1 border-t border-base-300"></div>
+        <!-- Séparateur de date - style badge moderne -->
+        <div class="flex items-center justify-center my-4">
           <span
             id={"date-divider-#{date}"}
             phx-hook="LocalDate"
             data-date={date}
-            class="px-3 text-xs text-base-content/50 font-medium"
+            class="px-4 py-1.5 text-xs text-base-content/70 font-medium bg-base-200/80 rounded-full shadow-sm backdrop-blur-sm"
           >
             {format_date_divider(date)}
           </span>
-          <div class="flex-1 border-t border-base-300"></div>
         </div>
         <!-- Messages de cette date -->
         <.message_bubble
@@ -424,68 +422,44 @@ defmodule MonAppWeb.ChatComponents do
           <!-- Message sans réponse -->
           <%= if !@reply_to do %>
             <!-- Images attachées avec overlay heure -->
-            <div :if={@has_attachments && !@has_body} class={"relative inline-block " <> if @is_mine, do: "text-right", else: "text-left"}>
+            <div :if={@has_attachments && !@has_body} class={if @is_mine, do: "text-right", else: "text-left"}>
               <div class={
-                "inline-grid gap-1 rounded-2xl overflow-hidden " <>
-                (cond do
-                  length(@attachments) == 1 -> "grid-cols-1"
-                  length(@attachments) == 2 -> "grid-cols-2"
-                  true -> "grid-cols-2"
-                end) <>
-                (if @is_mine, do: " rounded-br-md", else: " rounded-bl-md")
+                "relative inline-block rounded-2xl overflow-hidden p-1 " <>
+                if @is_mine, do: "bg-primary rounded-br-md", else: "bg-base-200 rounded-bl-md"
               }>
-                <div
-                  :for={attachment <- @attachments}
-                  class="relative overflow-hidden cursor-pointer"
-                  phx-click="open_image_preview"
-                  phx-value-src={MessageAttachment.url(attachment)}
-                >
-                  <img
-                    src={MessageAttachment.url(attachment)}
-                    alt={attachment.original_filename}
-                    class="w-full h-auto max-h-64 object-cover hover:scale-105 transition-transform duration-200"
-                  />
+                <.image_grid
+                  attachments={@attachments}
+                  is_mine={@is_mine}
+                  max_height="max-h-72"
+                  rounded={false}
+                />
+                <!-- Heure overlay sur image -->
+                <div class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 text-white px-1.5 py-0.5 rounded text-[10px]">
+                  <span id={"msg-time-#{@message.id}"} phx-hook="LocalTime" data-time={NaiveDateTime.to_iso8601(@message.inserted_at)}>
+                    {format_message_time(@message.inserted_at)}
+                  </span>
+                  <span :if={@is_mine}>{Message.status_icon(@message.status)}</span>
                 </div>
-              </div>
-              <!-- Heure overlay sur image -->
-              <div class="absolute bottom-2 right-2 flex items-center gap-1 bg-black/50 text-white px-1.5 py-0.5 rounded text-[10px]">
-                <span id={"msg-time-#{@message.id}"} phx-hook="LocalTime" data-time={NaiveDateTime.to_iso8601(@message.inserted_at)}>
-                  {format_message_time(@message.inserted_at)}
-                </span>
-                <span :if={@is_mine}>{Message.status_icon(@message.status)}</span>
               </div>
             </div>
 
             <!-- Images avec texte -->
             <div :if={@has_attachments && @has_body} class={if @is_mine, do: "text-right", else: "text-left"}>
               <div class={
-                "inline-block rounded-2xl overflow-hidden " <>
+                "inline-block rounded-2xl overflow-hidden max-w-xs " <>
                 if @is_mine, do: "bg-primary rounded-br-md", else: "bg-base-200 rounded-bl-md"
               }>
-                <div class={
-                  "grid gap-1 " <>
-                  cond do
-                    length(@attachments) == 1 -> "grid-cols-1"
-                    length(@attachments) == 2 -> "grid-cols-2"
-                    true -> "grid-cols-2"
-                  end
-                }>
-                  <div
-                    :for={attachment <- @attachments}
-                    class="relative overflow-hidden cursor-pointer"
-                    phx-click="open_image_preview"
-                    phx-value-src={MessageAttachment.url(attachment)}
-                  >
-                    <img
-                      src={MessageAttachment.url(attachment)}
-                      alt={attachment.original_filename}
-                      class="w-full h-auto max-h-64 object-cover hover:scale-105 transition-transform duration-200"
-                    />
-                  </div>
+                <div class="p-1">
+                  <.image_grid
+                    attachments={@attachments}
+                    is_mine={@is_mine}
+                    max_height="max-h-48"
+                    rounded={false}
+                  />
                 </div>
                 <!-- Texte avec heure intégrée -->
                 <div class={
-                  "px-3 pt-2 pb-1 " <>
+                  "px-3 pt-1 pb-1 " <>
                   if @is_mine, do: "text-primary-content", else: "text-base-content"
                 }>
                   <p class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</p>
@@ -532,27 +506,11 @@ defmodule MonAppWeb.ChatComponents do
 
           <!-- Images attachées pour messages avec réponse -->
           <div :if={@reply_to && @has_attachments} class={"mt-1 " <> if @is_mine, do: "text-right", else: "text-left"}>
-            <div class={
-              "inline-grid gap-1 rounded-2xl overflow-hidden " <>
-              cond do
-                length(@attachments) == 1 -> "grid-cols-1"
-                length(@attachments) == 2 -> "grid-cols-2"
-                true -> "grid-cols-2"
-              end
-            }>
-              <div
-                :for={attachment <- @attachments}
-                class="relative overflow-hidden cursor-pointer"
-                phx-click="open_image_preview"
-                phx-value-src={MessageAttachment.url(attachment)}
-              >
-                <img
-                  src={MessageAttachment.url(attachment)}
-                  alt={attachment.original_filename}
-                  class="w-full h-auto max-h-64 object-cover hover:scale-105 transition-transform duration-200"
-                />
-              </div>
-            </div>
+            <.image_grid
+              attachments={@attachments}
+              is_mine={@is_mine}
+              max_height="max-h-48"
+            />
           </div>
         <% end %>
         </div>
@@ -636,6 +594,157 @@ defmodule MonAppWeb.ChatComponents do
     |> Enum.sort_by(& &1.count, :desc)
   end
   defp group_reactions(_), do: []
+
+  # ============== IMAGE GRID COMPONENT ==============
+
+  @doc """
+  Composant pour afficher une grille d'images optimisée selon le nombre d'images.
+  - 1 image: pleine largeur
+  - 2 images: côte à côte
+  - 3 images: 1 grande + 2 petites
+  - 4 images: grille 2x2
+  - 5+ images: 4 images avec indicateur "+N"
+  """
+  attr :attachments, :list, required: true
+  attr :is_mine, :boolean, default: false
+  attr :max_height, :string, default: "max-h-72"
+  attr :rounded, :boolean, default: true
+
+  def image_grid(assigns) do
+    count = length(assigns.attachments)
+    # Limiter à 4 images visibles max
+    visible_attachments = Enum.take(assigns.attachments, 4)
+    remaining_count = max(0, count - 4)
+
+    assigns =
+      assigns
+      |> assign(:count, count)
+      |> assign(:visible_attachments, visible_attachments)
+      |> assign(:remaining_count, remaining_count)
+
+    ~H"""
+    <div class={
+      "inline-block overflow-hidden " <>
+      if @rounded do
+        "rounded-2xl " <> if @is_mine, do: "rounded-br-md", else: "rounded-bl-md"
+      else
+        ""
+      end
+    }>
+      <%= case @count do %>
+        <% 1 -> %>
+          <!-- 1 image: pleine largeur -->
+          <div
+            class="relative overflow-hidden cursor-pointer"
+            phx-click="open_image_preview"
+            phx-value-src={MessageAttachment.url(List.first(@attachments))}
+          >
+            <img
+              src={MessageAttachment.url(List.first(@attachments))}
+              alt={List.first(@attachments).original_filename}
+              class={"w-full h-auto object-cover hover:scale-105 transition-transform duration-200 " <> @max_height}
+            />
+          </div>
+
+        <% 2 -> %>
+          <!-- 2 images: côte à côte -->
+          <div class="grid grid-cols-2 gap-0.5">
+            <div
+              :for={attachment <- @attachments}
+              class="relative overflow-hidden cursor-pointer aspect-square"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(attachment)}
+            >
+              <img
+                src={MessageAttachment.url(attachment)}
+                alt={attachment.original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+          </div>
+
+        <% 3 -> %>
+          <!-- 3 images: 1 grande à gauche + 2 petites empilées à droite -->
+          <div class="grid grid-cols-2 gap-0.5" style="max-width: 280px;">
+            <div
+              class="relative overflow-hidden cursor-pointer row-span-2 aspect-[3/4]"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(Enum.at(@attachments, 0))}
+            >
+              <img
+                src={MessageAttachment.url(Enum.at(@attachments, 0))}
+                alt={Enum.at(@attachments, 0).original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+            <div
+              class="relative overflow-hidden cursor-pointer aspect-square"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(Enum.at(@attachments, 1))}
+            >
+              <img
+                src={MessageAttachment.url(Enum.at(@attachments, 1))}
+                alt={Enum.at(@attachments, 1).original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+            <div
+              class="relative overflow-hidden cursor-pointer aspect-square"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(Enum.at(@attachments, 2))}
+            >
+              <img
+                src={MessageAttachment.url(Enum.at(@attachments, 2))}
+                alt={Enum.at(@attachments, 2).original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+          </div>
+
+        <% 4 -> %>
+          <!-- 4 images: grille 2x2 -->
+          <div class="grid grid-cols-2 gap-0.5" style="max-width: 280px;">
+            <div
+              :for={attachment <- @attachments}
+              class="relative overflow-hidden cursor-pointer aspect-square"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(attachment)}
+            >
+              <img
+                src={MessageAttachment.url(attachment)}
+                alt={attachment.original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+            </div>
+          </div>
+
+        <% _ -> %>
+          <!-- 5+ images: grille 2x2 avec indicateur +N -->
+          <div class="grid grid-cols-2 gap-0.5" style="max-width: 280px;">
+            <div
+              :for={{attachment, index} <- Enum.with_index(@visible_attachments)}
+              class="relative overflow-hidden cursor-pointer aspect-square"
+              phx-click="open_image_preview"
+              phx-value-src={MessageAttachment.url(attachment)}
+            >
+              <img
+                src={MessageAttachment.url(attachment)}
+                alt={attachment.original_filename}
+                class="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+              />
+              <!-- Overlay +N sur la dernière image visible -->
+              <div
+                :if={index == 3 && @remaining_count > 0}
+                class="absolute inset-0 bg-black/60 flex items-center justify-center"
+              >
+                <span class="text-white text-2xl font-bold">+{@remaining_count}</span>
+              </div>
+            </div>
+          </div>
+      <% end %>
+    </div>
+    """
+  end
 
   # ============== REPLY PREVIEW ==============
 

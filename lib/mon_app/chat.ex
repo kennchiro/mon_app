@@ -370,11 +370,21 @@ defmodule MonApp.Chat do
   @doc """
   Marque tous les messages d'une conversation comme vus.
   Appelé quand l'utilisateur ouvre la conversation.
+  Retourne les IDs des messages mis à jour groupés par sender_id.
   """
   def mark_conversation_as_seen(conversation_id, user_id) do
     now = DateTime.utc_now()
 
-    # Seulement les messages non envoyés par l'utilisateur
+    # Récupérer les messages qui vont être mis à jour (avant la mise à jour)
+    messages_to_update =
+      Message
+      |> where(conversation_id: ^conversation_id)
+      |> where([m], m.sender_id != ^user_id)
+      |> where([m], m.status != "seen")
+      |> select([m], {m.id, m.sender_id})
+      |> Repo.all()
+
+    # Mettre à jour les messages
     {count, _} =
       Message
       |> where(conversation_id: ^conversation_id)
@@ -382,7 +392,25 @@ defmodule MonApp.Chat do
       |> where([m], m.status != "seen")
       |> Repo.update_all(set: [status: "seen", seen_at: now])
 
+    # Grouper les IDs par sender_id pour notifier chaque expéditeur
+    messages_by_sender =
+      messages_to_update
+      |> Enum.group_by(fn {_id, sender_id} -> sender_id end, fn {id, _} -> id end)
+
+    # Broadcast aux expéditeurs
+    Enum.each(messages_by_sender, fn {sender_id, message_ids} ->
+      broadcast_messages_seen(sender_id, message_ids)
+    end)
+
     {:ok, count}
+  end
+
+  defp broadcast_messages_seen(sender_id, message_ids) do
+    Phoenix.PubSub.broadcast(
+      MonApp.PubSub,
+      "user:#{sender_id}",
+      {:messages_seen, message_ids}
+    )
   end
 
   @doc """
