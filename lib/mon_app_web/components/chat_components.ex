@@ -156,29 +156,56 @@ defmodule MonAppWeb.ChatComponents do
       for={@form}
       phx-submit="send_message"
       phx-change="typing"
-      class="flex items-end gap-2 p-4 border-t border-base-200 bg-base-100"
+      class="p-3 border-t border-base-200 bg-base-100"
     >
-      <div class="flex-1">
-        <textarea
-          name="message[body]"
-          rows="1"
-          class="textarea textarea-bordered w-full min-h-[44px] max-h-32 resize-none text-base"
-          placeholder="Écrivez un message..."
-          phx-debounce="300"
-          phx-hook="AutoResize"
-          id="message-input"
+      <div class="flex items-end gap-2 bg-base-200/50 rounded-2xl p-2">
+        <!-- Bouton emoji -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-circle text-base-content/50 hover:text-base-content"
           disabled={@disabled}
-        />
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
+        <!-- Zone de texte -->
+        <div class="flex-1 min-w-0">
+          <textarea
+            name="message[body]"
+            rows="1"
+            class="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-base placeholder-base-content/40 py-2 px-1 min-h-[40px] max-h-28"
+            placeholder="Écrivez un message..."
+            phx-debounce="300"
+            phx-hook="ChatInput"
+            id="message-input"
+            disabled={@disabled}
+          />
+        </div>
+
+        <!-- Bouton pièce jointe -->
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm btn-circle text-base-content/50 hover:text-base-content"
+          disabled={@disabled}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+        </button>
+
+        <!-- Bouton envoyer -->
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm btn-circle shrink-0 transition-all duration-200"
+          disabled={@disabled}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+          </svg>
+        </button>
       </div>
-      <button
-        type="submit"
-        class="btn btn-primary btn-circle"
-        disabled={@disabled}
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-        </svg>
-      </button>
     </.form>
     """
   end
@@ -191,31 +218,33 @@ defmodule MonAppWeb.ChatComponents do
 
   def chat_header(assigns) do
     ~H"""
-    <div class="flex items-center gap-3 p-4 border-b border-base-200 bg-base-100">
-      <a href="/conversations" class="btn btn-ghost btn-sm btn-circle">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </a>
-      <div class="relative">
-        <.user_avatar name={@other_user.name} size="w-10 h-10" />
-        <span
-          :if={@online}
-          class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
-        />
-      </div>
-      <div class="flex-1">
-        <h2 class="font-semibold">{@other_user.name}</h2>
-        <p class="text-xs text-base-content/60">
-          <%= cond do %>
-            <% @typing -> %>
-              <span class="text-primary">écrit...</span>
-            <% @online -> %>
-              En ligne
-            <% true -> %>
-              Hors ligne
-          <% end %>
-        </p>
+    <div class="border-b border-base-200 bg-base-100 safe-area-top">
+      <div class="flex items-center gap-3 px-4 py-3 min-h-[60px]">
+        <a href="/conversations" class="btn btn-ghost btn-sm btn-circle shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div class="relative shrink-0">
+          <.user_avatar name={@other_user.name} size="w-11 h-11" />
+          <span
+            :if={@online}
+            class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
+          />
+        </div>
+        <div class="flex-1 min-w-0 py-0.5">
+          <h2 class="font-semibold text-base truncate leading-tight">{@other_user.name}</h2>
+          <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
+            <%= cond do %>
+              <% @typing -> %>
+                <span class="text-primary">écrit...</span>
+              <% @online -> %>
+                En ligne
+              <% true -> %>
+                Hors ligne
+            <% end %>
+          </p>
+        </div>
       </div>
     </div>
     """
@@ -232,59 +261,67 @@ defmodule MonAppWeb.ChatComponents do
 
   def chat_bottom_sheet(assigns) do
     ~H"""
-    <div class="fixed inset-0 z-50 flex justify-end">
-      <!-- Overlay -->
+    <div class="fixed inset-0 z-50 md:flex md:justify-end">
+      <!-- Overlay (hidden on mobile) -->
       <div
-        class="absolute inset-0 bg-black/30"
+        class="hidden md:block absolute inset-0 bg-black/30"
         phx-click="close_chat"
       />
 
-      <!-- Bottom Sheet (à droite) -->
-      <div class="relative w-full max-w-md h-full flex flex-col bg-base-100 shadow-2xl animate-slide-in-right">
-        <!-- Header -->
-        <div class="flex items-center gap-3 p-4 border-b border-base-200 bg-base-100">
-          <button
-            type="button"
-            phx-click="close_chat"
-            class="btn btn-ghost btn-sm btn-circle"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <div class="relative">
-            <.user_avatar name={@other_user.name} size="w-10 h-10" />
-            <span
-              :if={@online}
-              class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
-            />
-          </div>
-          <div class="flex-1">
-            <h2 class="font-semibold">{@other_user.name}</h2>
-            <p class="text-xs text-base-content/60">
-              <%= cond do %>
-                <% @typing -> %>
-                  <span class="text-primary">écrit...</span>
-                <% @online -> %>
-                  En ligne
-                <% true -> %>
-                  Hors ligne
-              <% end %>
-            </p>
+      <!-- Chat Panel - Full screen on mobile, side panel on desktop -->
+      <div class="relative w-full md:max-w-md h-full flex flex-col bg-base-100 shadow-2xl md:animate-slide-in-right">
+        <!-- Header avec safe area -->
+        <div class="border-b border-base-200 bg-base-100 safe-area-top">
+          <div class="flex items-center gap-3 px-4 py-3 min-h-[60px]">
+            <button
+              type="button"
+              phx-click="close_chat"
+              class="btn btn-ghost btn-sm btn-circle shrink-0"
+            >
+              <!-- Flèche retour sur mobile, X sur desktop -->
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden md:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div class="relative shrink-0">
+              <.user_avatar name={@other_user.name} size="w-11 h-11" />
+              <span
+                :if={@online}
+                class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
+              />
+            </div>
+            <div class="flex-1 min-w-0 py-0.5">
+              <h2 class="font-semibold text-base truncate leading-tight">{@other_user.name}</h2>
+              <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
+                <%= cond do %>
+                  <% @typing -> %>
+                    <span class="text-primary">écrit...</span>
+                  <% @online -> %>
+                    En ligne
+                  <% true -> %>
+                    Hors ligne
+                <% end %>
+              </p>
+            </div>
           </div>
         </div>
 
         <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto bg-base-200/30"
+          class="flex-1 overflow-y-auto bg-base-200/30 overscroll-contain"
           id="sheet-messages-container"
           phx-hook="ScrollToBottom"
         >
           <.message_list messages={@messages} current_user={@current_user} />
         </div>
 
-        <!-- Input -->
-        <.chat_input form={@form} />
+        <!-- Input avec safe area pour mobile -->
+        <div class="safe-area-bottom">
+          <.chat_input form={@form} />
+        </div>
       </div>
     </div>
     """

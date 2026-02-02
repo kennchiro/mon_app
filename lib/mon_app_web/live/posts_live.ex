@@ -4,8 +4,10 @@ defmodule MonAppWeb.PostsLive do
   alias MonApp.Blog
   alias MonApp.Blog.Post
   alias MonApp.Blog.Comment
+  alias MonApp.Chat
   alias MonApp.Repo
   alias MonApp.Social
+  alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
   import MonAppWeb.PostComponents
@@ -13,8 +15,6 @@ defmodule MonAppWeb.PostsLive do
   @topic "posts"
 
   # ============== LIFECYCLE ==============
-
-  alias MonAppWeb.Presence
 
   @impl true
   def mount(_params, _session, socket) do
@@ -30,15 +30,19 @@ defmodule MonAppWeb.PostsLive do
       })
 
       Phoenix.PubSub.subscribe(MonApp.PubSub, @topic)
+      # S'abonner aux notifications de nouveaux messages
+      Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
     posts = Blog.list_posts_for_user(user_id)
     pending_count = length(Social.list_pending_requests(user_id))
+    unread_messages_count = Chat.count_total_unread(user_id)
 
     {:ok,
      socket
      |> assign(:posts, posts)
      |> assign(:pending_requests_count, pending_count)
+     |> assign(:unread_messages_count, unread_messages_count)
      |> assign(:form, to_form(Blog.change_post(%Post{})))
      |> assign(:show_post_modal, false)
      |> assign(:editing_post, nil)
@@ -80,7 +84,7 @@ defmodule MonAppWeb.PostsLive do
 
     ~H"""
     <div class={"min-h-screen bg-base-200 #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
-      <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} />
+      <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} />
 
       <main class="max-w-4xl mx-auto p-6">
         <.post_form_trigger current_user={@current_user} />
@@ -1102,6 +1106,19 @@ defmodule MonAppWeb.PostsLive do
       end
 
     {:noreply, assign(socket, :posts, posts)}
+  end
+
+  @impl true
+  def handle_info({:new_message, _message}, socket) do
+    # Incrémenter le compteur de messages non lus
+    user_id = socket.assigns.current_user.id
+    unread_count = Chat.count_total_unread(user_id)
+    {:noreply, assign(socket, :unread_messages_count, unread_count)}
+  end
+
+  @impl true
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
   end
 
   # ============== HELPERS ==============

@@ -54,12 +54,15 @@ defmodule MonAppWeb.ConversationsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-200">
-      <.navbar current_user={@current_user} current_path="/conversations" pending_requests_count={@pending_requests_count} />
+    <div class={["min-h-screen bg-base-200", @active_conversation && "chat-open"]}>
+      <!-- Navbar cachée sur mobile quand le chat est ouvert -->
+      <div class={@active_conversation && "hidden md:block"}>
+        <.navbar current_user={@current_user} current_path="/conversations" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_count} />
+      </div>
 
-      <main class="max-w-2xl mx-auto">
-        <!-- Header -->
-        <div class="bg-base-100 border-b border-base-200 sticky top-0 z-10">
+      <main class="max-w-2xl mx-auto pb-safe">
+        <!-- Header - caché sur mobile quand le chat est ouvert -->
+        <div class={["bg-base-100 border-b border-base-200 sticky top-0 z-10", @active_conversation && "hidden md:block"]}>
           <div class="flex items-center justify-between p-4">
             <h1 class="text-xl font-bold">Messages</h1>
             <button
@@ -70,13 +73,13 @@ defmodule MonAppWeb.ConversationsLive do
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-              Nouveau
+              <span class="hidden sm:inline">Nouveau</span>
             </button>
           </div>
         </div>
 
-        <!-- Liste des conversations -->
-        <div class="bg-base-100">
+        <!-- Liste des conversations - cachée sur mobile quand le chat est ouvert -->
+        <div class={["bg-base-100 min-h-[50vh]", @active_conversation && "hidden md:block"]}>
           <.conversation_list
             conversations={@conversations}
             current_user={@current_user}
@@ -286,10 +289,16 @@ defmodule MonAppWeb.ConversationsLive do
         {:noreply, socket}
       else
         # Si le message vient de l'autre personne, le marquer comme vu
-        if message.sender_id != user.id do
-          Chat.mark_conversation_as_seen(active_conversation.id, user.id)
-          notify_messages_seen(active_conversation.id, user.id, message.sender_id)
-        end
+        socket =
+          if message.sender_id != user.id do
+            Chat.mark_conversation_as_seen(active_conversation.id, user.id)
+            notify_messages_seen(active_conversation.id, user.id, message.sender_id)
+            # Rafraîchir le compteur après avoir marqué comme vu
+            new_unread_count = Chat.count_total_unread(user.id)
+            assign(socket, :unread_count, new_unread_count)
+          else
+            socket
+          end
 
         {:noreply,
          socket

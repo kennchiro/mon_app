@@ -117,3 +117,49 @@
 .animate-slide-in-right {
   animation: slide-in-right 0.3s ease-out;
 }
+
+/* Safe area support pour iPhone X+ et autres appareils avec notch */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Styles spécifiques pour le chat mobile */
+@media (max-width: 767px) {
+  /* Empêcher le scroll du body quand le chat est ouvert */
+  body:has(.chat-open) {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
+  /* Animation slide-up pour mobile */
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .animate-slide-up-mobile {
+    animation: slide-up 0.3s ease-out;
+  }
+}
+
+/* Améliorer le scroll sur mobile */
+.overscroll-contain {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix pour le clavier virtuel sur mobile */
+@supports (height: 100dvh) {
+  .h-full-mobile {
+    height: 100dvh;
+  }
+}

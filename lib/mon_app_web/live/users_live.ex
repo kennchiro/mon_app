@@ -2,6 +2,7 @@ defmodule MonAppWeb.UsersLive do
   use MonAppWeb, :live_view
 
   alias MonApp.Social
+  alias MonApp.Chat
   alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
@@ -25,11 +26,16 @@ defmodule MonAppWeb.UsersLive do
       })
 
       Phoenix.PubSub.subscribe(MonApp.PubSub, "#{@topic}:#{user_id}")
+      # S'abonner aux notifications de nouveaux messages
+      Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
+
+    unread_messages_count = Chat.count_total_unread(user_id)
 
     {:ok,
      socket
      |> assign(:active_tab, :friends)
+     |> assign(:unread_messages_count, unread_messages_count)
      |> load_data()}
   end
 
@@ -39,7 +45,7 @@ defmodule MonAppWeb.UsersLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-base-200">
-      <.navbar current_user={@current_user} current_path="/users" pending_requests_count={@pending_count} />
+      <.navbar current_user={@current_user} current_path="/users" pending_requests_count={@pending_count} unread_messages_count={@unread_messages_count} />
 
       <main class="max-w-4xl mx-auto p-6">
         <h1 class="text-2xl font-bold mb-6">Amis</h1>
@@ -181,6 +187,19 @@ defmodule MonAppWeb.UsersLive do
   @impl true
   def handle_info({:friendship_update, _}, socket) do
     {:noreply, load_data(socket)}
+  end
+
+  @impl true
+  def handle_info({:new_message, _message}, socket) do
+    # Incrémenter le compteur de messages non lus
+    user_id = socket.assigns.current_user.id
+    unread_count = Chat.count_total_unread(user_id)
+    {:noreply, assign(socket, :unread_messages_count, unread_count)}
+  end
+
+  @impl true
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
   end
 
   # ============== HELPERS ==============

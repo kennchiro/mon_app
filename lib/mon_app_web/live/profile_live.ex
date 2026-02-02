@@ -2,6 +2,7 @@ defmodule MonAppWeb.ProfileLive do
   use MonAppWeb, :live_view
 
   alias MonApp.Social
+  alias MonApp.Chat
   alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
@@ -20,11 +21,18 @@ defmodule MonAppWeb.ProfileLive do
         name: user.name,
         online_at: System.system_time(:second)
       })
+
+      # S'abonner aux notifications de nouveaux messages
+      Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
     pending_count = length(Social.list_pending_requests(user_id))
+    unread_messages_count = Chat.count_total_unread(user_id)
 
-    {:ok, assign(socket, :pending_requests_count, pending_count)}
+    {:ok,
+     socket
+     |> assign(:pending_requests_count, pending_count)
+     |> assign(:unread_messages_count, unread_messages_count)}
   end
 
   # ============== RENDER ==============
@@ -33,7 +41,7 @@ defmodule MonAppWeb.ProfileLive do
   def render(assigns) do
     ~H"""
     <div class="min-h-screen bg-base-200">
-      <.navbar current_user={@current_user} current_path="/profile" pending_requests_count={@pending_requests_count} />
+      <.navbar current_user={@current_user} current_path="/profile" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} />
 
       <main class="max-w-4xl mx-auto p-6">
         <div class="card bg-base-100 shadow-sm">
@@ -83,5 +91,20 @@ defmodule MonAppWeb.ProfileLive do
       </main>
     </div>
     """
+  end
+
+  # ============== PUBSUB HANDLERS ==============
+
+  @impl true
+  def handle_info({:new_message, _message}, socket) do
+    # Incrémenter le compteur de messages non lus
+    user_id = socket.assigns.current_user.id
+    unread_count = Chat.count_total_unread(user_id)
+    {:noreply, assign(socket, :unread_messages_count, unread_count)}
+  end
+
+  @impl true
+  def handle_info(_msg, socket) do
+    {:noreply, socket}
   end
 end

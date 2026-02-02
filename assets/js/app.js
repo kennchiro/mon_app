@@ -64,6 +64,48 @@ const Hooks = {
       this.el.style.height = "auto"
       this.el.style.height = Math.min(this.el.scrollHeight, 128) + "px"
     }
+  },
+
+  // Chat input with auto-resize and Enter to send
+  ChatInput: {
+    mounted() {
+      this.el.addEventListener("input", () => {
+        this.resize()
+      })
+
+      // Enter pour envoyer, Shift+Enter pour nouvelle ligne
+      this.el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault()
+          const form = this.el.closest("form")
+          if (form && this.el.value.trim() !== "") {
+            form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
+          }
+        }
+      })
+
+      // Reset après envoi
+      this.el.form?.addEventListener("submit", () => {
+        setTimeout(() => {
+          this.el.style.height = "auto"
+          this.el.value = ""
+          this.el.focus()
+        }, 10)
+      })
+
+      // Focus initial
+      this.el.focus()
+    },
+    updated() {
+      // Re-focus après mise à jour si le champ est vide
+      if (this.el.value === "") {
+        this.el.focus()
+      }
+    },
+    resize() {
+      this.el.style.height = "auto"
+      this.el.style.height = Math.min(this.el.scrollHeight, 112) + "px"
+    }
   }
 }
 
