@@ -915,6 +915,149 @@ defmodule MonAppWeb.PostComponents do
     """
   end
 
+  # ============== SHARE POST MODAL ==============
+
+  attr :post, :map, required: true
+  attr :current_user, :map, required: true
+  attr :form, :map, required: true
+
+  def share_post_modal(assigns) do
+    ~H"""
+    <!-- Overlay -->
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <!-- Modal -->
+      <div
+        class="bg-base-100 rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        phx-click-away="close_share_modal"
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b border-base-200">
+          <div></div>
+          <h3 class="text-xl font-bold">Partager la publication</h3>
+          <button
+            type="button"
+            phx-click="close_share_modal"
+            class="btn btn-ghost btn-sm btn-circle"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <.form for={@form} phx-submit="share_post" phx-change="validate_share" class="flex flex-col flex-1 overflow-hidden">
+          <input type="hidden" name="share[shared_post_id]" value={@post.id} />
+
+          <div class="p-4 flex-1 overflow-y-auto space-y-4">
+            <!-- User info + visibility -->
+            <div class="flex items-center gap-3">
+              <.user_avatar name={@current_user.name} />
+              <div>
+                <div class="font-semibold">{@current_user.name}</div>
+                <!-- Visibility dropdown -->
+                <div class="dropdown dropdown-bottom">
+                  <div tabindex="0" role="button" class="btn btn-xs btn-ghost gap-1 -ml-2">
+                    <.visibility_icon visibility={@form[:visibility].value || "public"} />
+                    <span class="text-xs">{visibility_label(@form[:visibility].value || "public")}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[60] w-52 p-2 shadow-lg border border-base-200">
+                    <li>
+                      <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="share[visibility]" value="public" checked={(@form[:visibility].value || "public") == "public"} class="radio radio-sm" />
+                        <.visibility_icon visibility="public" />
+                        <div>
+                          <div class="font-medium text-sm">Public</div>
+                          <div class="text-xs text-base-content/50">Tout le monde</div>
+                        </div>
+                      </label>
+                    </li>
+                    <li>
+                      <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="share[visibility]" value="friends" checked={@form[:visibility].value == "friends"} class="radio radio-sm" />
+                        <.visibility_icon visibility="friends" />
+                        <div>
+                          <div class="font-medium text-sm">Amis</div>
+                          <div class="text-xs text-base-content/50">Vos amis uniquement</div>
+                        </div>
+                      </label>
+                    </li>
+                    <li>
+                      <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="share[visibility]" value="private" checked={@form[:visibility].value == "private"} class="radio radio-sm" />
+                        <.visibility_icon visibility="private" />
+                        <div>
+                          <div class="font-medium text-sm">Moi uniquement</div>
+                          <div class="text-xs text-base-content/50">Privé</div>
+                        </div>
+                      </label>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Optional title -->
+            <input
+              type="text"
+              name="share[title]"
+              value={@form[:title].value}
+              class="input input-ghost w-full text-lg font-medium focus:outline-none px-0"
+              placeholder="Ajouter un titre (optionnel)..."
+              phx-debounce="300"
+            />
+
+            <!-- Optional body/comment -->
+            <textarea
+              name="share[body]"
+              class="textarea textarea-ghost w-full min-h-[60px] text-base resize-none focus:outline-none px-0"
+              placeholder="Dites quelque chose sur cette publication..."
+              phx-debounce="300"
+            >{@form[:body].value}</textarea>
+
+            <!-- Preview of shared post -->
+            <div class="border border-base-300 rounded-lg overflow-hidden bg-base-200/50">
+              <div class="p-3">
+                <div class="flex items-center gap-2.5">
+                  <.user_avatar name={@post.user.name} size="w-8 h-8" />
+                  <div>
+                    <span class="font-semibold text-sm">{@post.user.name}</span>
+                    <div class="text-xs text-base-content/50">{time_ago(@post.inserted_at)}</div>
+                  </div>
+                </div>
+                <div :if={@post.title || @post.body} class="mt-2">
+                  <p :if={@post.title} class="font-medium text-sm">{@post.title}</p>
+                  <p :if={@post.body} class="text-sm text-base-content/80 line-clamp-3">{@post.body}</p>
+                </div>
+              </div>
+              <!-- First image preview if any -->
+              <img
+                :if={@post.images != []}
+                src={"/uploads/posts/#{List.first(@post.images).filename}"}
+                alt="Image du post"
+                class="w-full max-h-[200px] object-cover"
+              />
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="p-4 border-t border-base-200">
+            <button type="submit" class="btn btn-primary w-full gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              Partager maintenant
+            </button>
+          </div>
+        </.form>
+      </div>
+    </div>
+    """
+  end
+
   # ============== COMMENT ITEM ==============
 
   attr :comment, :map, required: true
@@ -1140,9 +1283,11 @@ defmodule MonAppWeb.PostComponents do
 
   def post_item(assigns) do
     comment_count = length(assigns.post.comments || [])
+    share_count = length(Map.get(assigns.post, :shares, []))
     reactions = get_reactions_data(assigns.post, assigns.current_user)
     assigns = assigns
       |> assign(:comment_count, comment_count)
+      |> assign(:share_count, share_count)
       |> assign(:reactions_data, reactions)
 
     ~H"""
@@ -1152,20 +1297,67 @@ defmodule MonAppWeb.PostComponents do
         <.post_header post={@post} current_user={@current_user} />
       </div>
 
-      <!-- Text content -->
-      <.post_text post={@post} />
+      <!-- Text content (si le post a un titre ou body) -->
+      <.post_text :if={@post.title || @post.body} post={@post} />
 
-      <!-- Image(s) -->
-      <.post_images images={@post.images} post_id={@post.id} />
+      <!-- Images du post (seulement si ce n'est pas un partage) -->
+      <.post_images :if={!@post.shared_post_id && @post.images != []} images={@post.images} post_id={@post.id} />
+
+      <!-- Shared post preview -->
+      <.shared_post_preview :if={@post.shared_post} shared_post={@post.shared_post} />
 
       <!-- Stats + Actions -->
       <.post_footer
         post={@post}
         comment_count={@comment_count}
+        share_count={@share_count}
         current_user={@current_user}
         reactions_data={@reactions_data}
       />
     </article>
+    """
+  end
+
+  # ============== SHARED POST PREVIEW ==============
+
+  attr :shared_post, :map, required: true
+
+  defp shared_post_preview(assigns) do
+    ~H"""
+    <div class="mx-3 mb-2 border border-base-300 rounded-lg overflow-hidden bg-base-200/30">
+      <!-- Shared post header -->
+      <div class="p-3 pb-2">
+        <div class="flex items-center gap-2">
+          <.user_avatar name={@shared_post.user.name} size="w-8 h-8" />
+          <div>
+            <span class="font-semibold text-sm">{@shared_post.user.name}</span>
+            <div class="text-xs text-base-content/50">{time_ago(@shared_post.inserted_at)}</div>
+          </div>
+        </div>
+        <!-- Shared post text -->
+        <div :if={@shared_post.title || @shared_post.body} class="mt-2">
+          <p :if={@shared_post.title} class="font-medium text-sm">{@shared_post.title}</p>
+          <p :if={@shared_post.body} class="text-sm text-base-content/80">{@shared_post.body}</p>
+        </div>
+      </div>
+      <!-- Shared post images -->
+      <div :if={@shared_post.images != []} class="bg-base-300">
+        <img
+          :if={length(@shared_post.images) == 1}
+          src={"/uploads/posts/#{List.first(@shared_post.images).filename}"}
+          alt="Image"
+          class="w-full max-h-[300px] object-cover"
+        />
+        <div :if={length(@shared_post.images) > 1} class="grid grid-cols-2 gap-[1px]">
+          <img
+            :for={image <- Enum.take(@shared_post.images, 4)}
+            src={"/uploads/posts/#{image.filename}"}
+            alt="Image"
+            class="w-full h-[120px] object-cover"
+          />
+        </div>
+      </div>
+    </div>
     """
   end
 
@@ -1192,6 +1384,7 @@ defmodule MonAppWeb.PostComponents do
 
   attr :post, :map, required: true
   attr :comment_count, :integer, required: true
+  attr :share_count, :integer, default: 0
   attr :current_user, :map, required: true
   attr :reactions_data, :map, required: true
 
@@ -1199,7 +1392,7 @@ defmodule MonAppWeb.PostComponents do
     ~H"""
     <div>
       <!-- Stats row - style Facebook -->
-      <div :if={@reactions_data.total > 0 || @comment_count > 0} class="px-3 py-1.5 flex items-center justify-between text-[13px] text-base-content/60">
+      <div :if={@reactions_data.total > 0 || @comment_count > 0 || @share_count > 0} class="px-3 py-1.5 flex items-center justify-between text-[13px] text-base-content/60">
         <!-- Réactions à gauche -->
         <button
           :if={@reactions_data.total > 0}
@@ -1217,17 +1410,21 @@ defmodule MonAppWeb.PostComponents do
         </button>
         <div :if={@reactions_data.total == 0}></div>
 
-        <!-- Commentaires à droite -->
-        <button
-          :if={@comment_count > 0}
-          type="button"
-          phx-click="open_comments"
-          phx-value-id={@post.id}
-          class="hover:underline"
-        >
-          {@comment_count} comment{if @comment_count > 1, do: "s", else: ""}
-        </button>
-        <div :if={@comment_count == 0}></div>
+        <!-- Commentaires et Partages à droite -->
+        <div class="flex items-center gap-2">
+          <button
+            :if={@comment_count > 0}
+            type="button"
+            phx-click="open_comments"
+            phx-value-id={@post.id}
+            class="hover:underline"
+          >
+            {@comment_count} comment{if @comment_count > 1, do: "s", else: ""}
+          </button>
+          <span :if={@share_count > 0} class="hover:underline cursor-default">
+            {@share_count} partage{if @share_count > 1, do: "s", else: ""}
+          </span>
+        </div>
       </div>
 
       <!-- Action buttons -->
@@ -1274,7 +1471,7 @@ defmodule MonAppWeb.PostComponents do
           <svg :if={!@reactions_data.user_reaction} xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
           </svg>
-          <span>{if @reactions_data.user_reaction, do: reaction_label(@reactions_data.user_reaction.type), else: "Like"}</span>
+          <span>{if @reactions_data.user_reaction, do: reaction_label(@reactions_data.user_reaction.type), else: "J'aime"}</span>
         </button>
         <!-- Reaction picker -->
         <div class="dropdown-content pb-2 z-50">
@@ -1307,18 +1504,20 @@ defmodule MonAppWeb.PostComponents do
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
         </svg>
-        <span>Comment</span>
+        <span>Commenter</span>
       </button>
 
       <!-- Share button -->
       <button
         type="button"
+        phx-click="open_share_modal"
+        phx-value-id={if @post.shared_post_id, do: @post.shared_post_id, else: @post.id}
         class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200 transition-colors"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
         </svg>
-        <span>Share</span>
+        <span>Partager</span>
       </button>
     </div>
     """
@@ -1373,9 +1572,12 @@ defmodule MonAppWeb.PostComponents do
       <.user_avatar name={@post.user.name} size="w-9 h-9" />
 
       <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-1.5">
+        <div class="flex items-center gap-1.5 flex-wrap">
           <span class="font-semibold text-[15px] text-base-content hover:underline cursor-pointer">
             {@post.user.name}
+          </span>
+          <span :if={@post.shared_post_id} class="text-[13px] text-base-content/60">
+            a partagé une publication
           </span>
         </div>
         <div class="flex items-center gap-1 text-[13px] text-base-content/50">

@@ -44,6 +44,8 @@ defmodule MonAppWeb.PostsLive do
      |> assign(:comment_reactions_filter, "all")
      |> assign(:comment_friendship_statuses, %{})
      |> assign(:preview_image, nil)
+     |> assign(:sharing_post, nil)
+     |> assign(:share_form, to_form(%{"visibility" => "public"}))
      |> allow_upload(:images,
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 20,
@@ -62,7 +64,8 @@ defmodule MonAppWeb.PostsLive do
   def render(assigns) do
     # Vérifier si un modal est ouvert pour bloquer le scroll
     modal_open? = assigns.show_post_modal || assigns.editing_post || assigns.viewing_post ||
-                  assigns.viewing_reactions_post || assigns.viewing_comment_reactions || assigns.preview_image
+                  assigns.viewing_reactions_post || assigns.viewing_comment_reactions ||
+                  assigns.preview_image || assigns.sharing_post
     assigns = assign(assigns, :modal_open?, modal_open?)
 
     ~H"""
@@ -110,6 +113,12 @@ defmodule MonAppWeb.PostsLive do
           friendship_statuses={@comment_friendship_statuses}
         />
         <.image_preview_modal :if={@preview_image} src={@preview_image} />
+        <.share_post_modal
+          :if={@sharing_post}
+          post={@sharing_post}
+          current_user={@current_user}
+          form={@share_form}
+        />
         <.post_list posts={@posts} current_user={@current_user} />
       </main>
     </div>
@@ -689,6 +698,74 @@ defmodule MonAppWeb.PostsLive do
   @impl true
   def handle_event("close_image_preview", _, socket) do
     {:noreply, assign(socket, :preview_image, nil)}
+  end
+
+  # ============== SHARE EVENTS ==============
+
+  @impl true
+  def handle_event("open_share_modal", %{"id" => id}, socket) do
+    post_id = String.to_integer(id)
+
+    # Chercher dans les posts locaux d'abord
+    post = Enum.find(socket.assigns.posts, fn p -> p.id == post_id end)
+
+    # Si pas trouvé, chercher dans les shared_post des posts locaux
+    post = post || Enum.find_value(socket.assigns.posts, fn p ->
+      if p.shared_post && p.shared_post.id == post_id, do: p.shared_post, else: nil
+    end)
+
+    # Si toujours pas trouvé, charger depuis la DB
+    post = post || Blog.get_post_with_user(post_id)
+
+    if post do
+      {:noreply,
+       socket
+       |> assign(:sharing_post, post)
+       |> assign(:share_form, to_form(%{"visibility" => "public", "title" => "", "body" => ""}))}
+    else
+      {:noreply, put_flash(socket, :error, "Post non trouvé")}
+    end
+  end
+
+  @impl true
+  def handle_event("close_share_modal", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:sharing_post, nil)
+     |> assign(:share_form, to_form(%{"visibility" => "public"}))}
+  end
+
+  @impl true
+  def handle_event("validate_share", %{"share" => share_params}, socket) do
+    {:noreply, assign(socket, :share_form, to_form(share_params))}
+  end
+
+  @impl true
+  def handle_event("share_post", %{"share" => share_params}, socket) do
+    user = socket.assigns.current_user
+    shared_post_id = String.to_integer(share_params["shared_post_id"])
+
+    attrs = %{
+      title: share_params["title"],
+      body: share_params["body"],
+      visibility: share_params["visibility"] || "public"
+    }
+
+    case Blog.share_post(user.id, shared_post_id, attrs) do
+      {:ok, _new_post} ->
+        # Recharger les posts pour inclure le nouveau partage
+        posts = Blog.list_posts_for_user(user.id)
+
+        {:noreply,
+         socket
+         |> assign(:posts, posts)
+         |> assign(:sharing_post, nil)
+         |> assign(:share_form, to_form(%{"visibility" => "public"}))
+         |> put_flash(:info, "Publication partagée !")}
+
+      {:error, _changeset} ->
+        {:noreply, put_flash(socket, :error, "Erreur lors du partage")}
+    end
   end
 
   @impl true

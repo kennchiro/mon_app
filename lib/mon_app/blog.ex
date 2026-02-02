@@ -45,7 +45,9 @@ defmodule MonApp.Blog do
     )
     |> order_by(desc: :inserted_at)
     |> Repo.all()
-    |> Repo.preload([:user, :images, :reactions, comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+    |> Repo.preload([:user, :images, :reactions, :shares,
+      shared_post: [:user, :images],
+      comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
   end
 
   @doc """
@@ -166,7 +168,9 @@ defmodule MonApp.Blog do
     post = Repo.get(Post, id)
 
     if post do
-      Repo.preload(post, [:user, :images, :reactions, comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+      Repo.preload(post, [:user, :images, :reactions, :shares,
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
     else
       nil
     end
@@ -390,5 +394,42 @@ defmodule MonApp.Blog do
     CommentImage
     |> where(comment_id: ^comment_id)
     |> Repo.all()
+  end
+
+  # ============== SHARES ==============
+
+  @doc "Partage un post"
+  def share_post(user_id, shared_post_id, attrs \\ %{}) do
+    attrs = Map.merge(attrs, %{
+      user_id: user_id,
+      shared_post_id: shared_post_id
+    })
+
+    %Post{}
+    |> Post.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Compte le nombre de partages d'un post"
+  def count_shares(post_id) do
+    Post
+    |> where(shared_post_id: ^post_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Liste les partages d'un post"
+  def list_shares(post_id) do
+    Post
+    |> where(shared_post_id: ^post_id)
+    |> preload(:user)
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+  end
+
+  @doc "Vérifie si un utilisateur a déjà partagé un post"
+  def has_shared?(user_id, post_id) do
+    Post
+    |> where(user_id: ^user_id, shared_post_id: ^post_id)
+    |> Repo.exists?()
   end
 end
