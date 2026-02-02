@@ -57,6 +57,10 @@ defmodule MonAppWeb.ConversationsLive do
      |> assign(:filter, "all")
      |> assign(:search_query, "")
      |> assign(:preview_image, nil)
+     |> assign(:reply_message, nil)
+     |> assign(:context_menu_message, nil)
+     |> assign(:delete_modal_message, nil)
+     |> assign(:reaction_picker_message_id, nil)
      |> allow_upload(:chat_images,
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 5,
@@ -165,6 +169,10 @@ defmodule MonAppWeb.ConversationsLive do
           form={@form}
           uploads={@uploads}
           preview_image={@preview_image}
+          reply_message={@reply_message}
+          context_menu_message={@context_menu_message}
+          delete_modal_message={@delete_modal_message}
+          reaction_picker_message_id={@reaction_picker_message_id}
         />
       </main>
     </div>
@@ -250,7 +258,7 @@ defmodule MonAppWeb.ConversationsLive do
 
           # Rafraîchir les conversations
           conversations = Chat.list_conversations(user.id)
-          messages = Chat.list_messages(conversation.id)
+          messages = Chat.list_messages_with_replies(conversation.id, user_id: user.id)
 
           {:noreply,
            socket
@@ -291,7 +299,7 @@ defmodule MonAppWeb.ConversationsLive do
     conversation = Chat.get_conversation(conversation_id)
 
     if conversation && Chat.user_in_conversation?(conversation_id, user.id) do
-      messages = Chat.list_messages(conversation_id)
+      messages = Chat.list_messages_with_replies(conversation_id, user_id: user.id)
 
       # S'abonner au channel de la conversation
       Phoenix.PubSub.subscribe(MonApp.PubSub, "chat:#{conversation_id}")
@@ -340,7 +348,11 @@ defmodule MonAppWeb.ConversationsLive do
      |> assign(:active_other_user, nil)
      |> assign(:active_display_name, nil)
      |> assign(:typing, false)
-     |> assign(:preview_image, nil)}
+     |> assign(:preview_image, nil)
+     |> assign(:reply_message, nil)
+     |> assign(:context_menu_message, nil)
+     |> assign(:delete_modal_message, nil)
+     |> assign(:reaction_picker_message_id, nil)}
   end
 
   @impl true
@@ -352,7 +364,7 @@ defmodule MonAppWeb.ConversationsLive do
       {:ok, conversation} ->
         # Ouvrir la conversation dans la bottom sheet
         other_user = Conversation.other_user(conversation, user.id)
-        messages = Chat.list_messages(conversation.id)
+        messages = Chat.list_messages_with_replies(conversation.id, user_id: user.id)
 
         # S'abonner au channel
         Phoenix.PubSub.subscribe(MonApp.PubSub, "chat:#{conversation.id}")
@@ -385,12 +397,18 @@ defmodule MonAppWeb.ConversationsLive do
     else
       user = socket.assigns.current_user
       conversation = socket.assigns.active_conversation
+      reply_message = socket.assigns.reply_message
 
-      case Chat.create_message(%{
+      message_attrs = %{
         body: if(body == "", do: nil, else: body),
         conversation_id: conversation.id,
         sender_id: user.id
-      }) do
+      }
+
+      # Ajouter reply_to_id si on répond à un message
+      message_attrs = if reply_message, do: Map.put(message_attrs, :reply_to_id, reply_message.id), else: message_attrs
+
+      case Chat.create_message(message_attrs) do
         {:ok, message} ->
           # Sauvegarder les images uploadées
           save_chat_images(socket, message.id)
@@ -429,7 +447,10 @@ defmodule MonAppWeb.ConversationsLive do
             end
           end
 
-          {:noreply, assign(socket, :form, to_form(%{"body" => ""}))}
+          {:noreply,
+           socket
+           |> assign(:form, to_form(%{"body" => ""}))
+           |> assign(:reply_message, nil)}
 
         {:error, _changeset} ->
           {:noreply, put_flash(socket, :error, "Erreur lors de l'envoi")}
@@ -505,6 +526,177 @@ defmodule MonAppWeb.ConversationsLive do
     {:noreply, socket}
   end
 
+  # ============== REPLY EVENTS ==============
+
+  @impl true
+  def handle_event("reply_to_message", %{"id" => message_id}, socket) do
+    message_id = String.to_integer(message_id)
+    message = Chat.get_message(message_id)
+
+    {:noreply,
+     socket
+     |> assign(:reply_message, message)
+     |> assign(:context_menu_message, nil)}
+  end
+
+  @impl true
+  def handle_event("cancel_reply", _, socket) do
+    {:noreply, assign(socket, :reply_message, nil)}
+  end
+
+  @impl true
+  def handle_event("scroll_to_message", %{"id" => message_id}, socket) do
+    {:noreply, push_event(socket, "scroll_to_message", %{id: message_id})}
+  end
+
+  # ============== CONTEXT MENU EVENTS ==============
+
+  @impl true
+  def handle_event("open_context_menu", %{"id" => message_id}, socket) do
+    message_id = String.to_integer(message_id)
+    message = Chat.get_message(message_id)
+    {:noreply, assign(socket, :context_menu_message, message)}
+  end
+
+  @impl true
+  def handle_event("close_context_menu", _, socket) do
+    {:noreply, assign(socket, :context_menu_message, nil)}
+  end
+
+  @impl true
+  def handle_event("copy_message", %{"id" => message_id}, socket) do
+    message_id = String.to_integer(message_id)
+    message = Chat.get_message(message_id)
+
+    if message && message.body do
+      {:noreply,
+       socket
+       |> assign(:context_menu_message, nil)
+       |> push_event("copy_to_clipboard", %{text: message.body})}
+    else
+      {:noreply, assign(socket, :context_menu_message, nil)}
+    end
+  end
+
+  @impl true
+  def handle_event("forward_message", %{"id" => _message_id}, socket) do
+    # TODO: Implémenter la fonctionnalité de transfert
+    {:noreply,
+     socket
+     |> assign(:context_menu_message, nil)
+     |> put_flash(:info, "Fonctionnalité de transfert bientôt disponible")}
+  end
+
+  # ============== DELETE MODAL EVENTS ==============
+
+  @impl true
+  def handle_event("open_delete_modal", %{"id" => message_id}, socket) do
+    message_id = String.to_integer(message_id)
+    message = Chat.get_message(message_id)
+
+    {:noreply,
+     socket
+     |> assign(:context_menu_message, nil)
+     |> assign(:delete_modal_message, message)}
+  end
+
+  @impl true
+  def handle_event("close_delete_modal", _, socket) do
+    {:noreply, assign(socket, :delete_modal_message, nil)}
+  end
+
+  @impl true
+  def handle_event("delete_message_for_me", %{"id" => message_id}, socket) do
+    user = socket.assigns.current_user
+    message_id = String.to_integer(message_id)
+
+    case Chat.delete_message_for_me(message_id, user.id) do
+      {:ok, _} ->
+        # Filtrer le message localement
+        messages = Enum.reject(socket.assigns.active_messages, &(&1.id == message_id))
+
+        {:noreply,
+         socket
+         |> assign(:active_messages, messages)
+         |> assign(:delete_modal_message, nil)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> assign(:delete_modal_message, nil)
+         |> put_flash(:error, "Erreur lors de la suppression")}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_message_for_all", %{"id" => message_id}, socket) do
+    user = socket.assigns.current_user
+    message_id = String.to_integer(message_id)
+
+    case Chat.delete_message_for_all(message_id, user.id) do
+      {:ok, updated_message} ->
+        # Mettre à jour le message localement pour afficher "supprimé"
+        messages =
+          Enum.map(socket.assigns.active_messages, fn msg ->
+            if msg.id == message_id do
+              updated_message
+            else
+              msg
+            end
+          end)
+
+        {:noreply,
+         socket
+         |> assign(:active_messages, messages)
+         |> assign(:delete_modal_message, nil)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> assign(:delete_modal_message, nil)
+         |> put_flash(:error, "Erreur lors de la suppression")}
+    end
+  end
+
+  # ============== REACTION EVENTS ==============
+
+  @impl true
+  def handle_event("open_reaction_picker", %{"id" => message_id}, socket) do
+    message_id = String.to_integer(message_id)
+    {:noreply, assign(socket, :reaction_picker_message_id, message_id)}
+  end
+
+  @impl true
+  def handle_event("close_reaction_picker", _, socket) do
+    {:noreply, assign(socket, :reaction_picker_message_id, nil)}
+  end
+
+  @impl true
+  def handle_event("toggle_reaction", %{"message-id" => message_id, "emoji" => emoji}, socket) do
+    user = socket.assigns.current_user
+    message_id = String.to_integer(message_id)
+
+    case Chat.toggle_reaction(message_id, user.id, emoji) do
+      {:ok, _reaction} ->
+        {:noreply,
+         socket
+         |> assign(:context_menu_message, nil)
+         |> assign(:reaction_picker_message_id, nil)}
+
+      {:ok, :removed} ->
+        {:noreply,
+         socket
+         |> assign(:context_menu_message, nil)
+         |> assign(:reaction_picker_message_id, nil)}
+
+      {:error, _} ->
+        {:noreply,
+         socket
+         |> assign(:context_menu_message, nil)
+         |> assign(:reaction_picker_message_id, nil)}
+    end
+  end
+
   # ============== PUBSUB HANDLERS ==============
 
   @impl true
@@ -534,6 +726,12 @@ defmodule MonAppWeb.ConversationsLive do
       if Enum.any?(messages, &(&1.id == message.id)) do
         {:noreply, socket}
       else
+        # Recharger le message avec reply_to si nécessaire
+        message = if message.reply_to_id && !Ecto.assoc_loaded?(message.reply_to) do
+          Chat.get_message_with_reply(message.id)
+        else
+          message
+        end
         # Si le message vient de quelqu'un d'autre, le marquer comme vu
         socket =
           if message.sender_id != user.id do
@@ -593,9 +791,75 @@ defmodule MonAppWeb.ConversationsLive do
   end
 
   @impl true
-  def handle_info({:message_deleted, message_id}, socket) do
+  def handle_info({:message_deleted, %{id: message_id, deleted_for_all_at: deleted_at}}, socket) do
+    if socket.assigns.active_conversation do
+      # Mettre à jour le champ deleted_for_all_at du message pour afficher "supprimé"
+      messages =
+        Enum.map(socket.assigns.active_messages, fn msg ->
+          if msg.id == message_id do
+            %{msg | deleted_for_all_at: deleted_at}
+          else
+            msg
+          end
+        end)
+
+      {:noreply, assign(socket, :active_messages, messages)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # Ancienne version (suppression complète) - garder pour compatibilité
+  @impl true
+  def handle_info({:message_deleted, message_id}, socket) when is_integer(message_id) do
     if socket.assigns.active_conversation do
       messages = Enum.reject(socket.assigns.active_messages, &(&1.id == message_id))
+      {:noreply, assign(socket, :active_messages, messages)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:reaction_added, message_id, reaction}, socket) do
+    if socket.assigns.active_conversation do
+      messages =
+        Enum.map(socket.assigns.active_messages, fn msg ->
+          if msg.id == message_id do
+            # Ajouter la réaction si elle n'existe pas déjà
+            existing_reactions = msg.reactions || []
+            if Enum.any?(existing_reactions, &(&1.id == reaction.id)) do
+              msg
+            else
+              %{msg | reactions: existing_reactions ++ [reaction]}
+            end
+          else
+            msg
+          end
+        end)
+
+      {:noreply, assign(socket, :active_messages, messages)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_info({:reaction_removed, message_id, reaction}, socket) do
+    if socket.assigns.active_conversation do
+      messages =
+        Enum.map(socket.assigns.active_messages, fn msg ->
+          if msg.id == message_id do
+            existing_reactions = msg.reactions || []
+            updated_reactions = Enum.reject(existing_reactions, fn r ->
+              r.user_id == reaction.user_id && r.emoji == reaction.emoji
+            end)
+            %{msg | reactions: updated_reactions}
+          else
+            msg
+          end
+        end)
+
       {:noreply, assign(socket, :active_messages, messages)}
     else
       {:noreply, socket}

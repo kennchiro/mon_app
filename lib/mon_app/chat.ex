@@ -9,6 +9,7 @@ defmodule MonApp.Chat do
   alias MonApp.Chat.ConversationParticipant
   alias MonApp.Chat.Message
   alias MonApp.Chat.MessageAttachment
+  alias MonApp.Chat.MessageReaction
   alias MonApp.Social
 
   @messages_per_page 50
@@ -460,11 +461,11 @@ defmodule MonApp.Chat do
     |> Repo.delete_all()
   end
 
-  @doc "Récupère un message par ID avec ses attachements"
+  @doc "Récupère un message par ID avec ses attachements et réactions"
   def get_message(id) do
     Message
     |> Repo.get(id)
-    |> Repo.preload([:sender, :attachments])
+    |> Repo.preload([:sender, :attachments, reactions: :user])
   end
 
   @doc "Supprime un message et ses attachements"
@@ -479,5 +480,262 @@ defmodule MonApp.Chat do
 
     # Supprimer le message (les attachements seront supprimés en cascade)
     Repo.delete(message)
+  end
+
+  # ============== SOFT DELETE ==============
+
+  @doc "Supprime un message pour l'expéditeur uniquement"
+  def delete_message_for_me(message_id, user_id) do
+    message = Repo.get(Message, message_id)
+
+    cond do
+      message == nil ->
+        {:error, :not_found}
+
+      message.sender_id != user_id ->
+        {:error, :unauthorized}
+
+      true ->
+        message
+        |> Message.delete_changeset(:for_me)
+        |> Repo.update()
+    end
+  end
+
+  @doc "Supprime un message pour tous les participants"
+  def delete_message_for_all(message_id, user_id) do
+    message = Repo.get(Message, message_id)
+
+    cond do
+      message == nil ->
+        {:error, :not_found}
+
+      message.sender_id != user_id ->
+        {:error, :unauthorized}
+
+      message.deleted_for_all_at != nil ->
+        {:error, :already_deleted}
+
+      true ->
+        result =
+          message
+          |> Message.delete_changeset(:for_all)
+          |> Repo.update()
+
+        case result do
+          {:ok, updated_message} ->
+            # Précharger les associations pour éviter les erreurs de rendu
+            updated_message = Repo.preload(updated_message, [:sender, :attachments, reply_to: :sender, reactions: :user])
+            # Broadcast to all participants
+            broadcast_message_deleted(updated_message)
+            {:ok, updated_message}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  defp broadcast_message_deleted(message) do
+    Phoenix.PubSub.broadcast(
+      MonApp.PubSub,
+      "chat:#{message.conversation_id}",
+      {:message_deleted, %{id: message.id, deleted_for_all_at: message.deleted_for_all_at, sender_id: message.sender_id}}
+    )
+  end
+
+  # ============== REPLY TO MESSAGE ==============
+
+  @doc "Récupère un message avec le message de réponse et réactions préchargés"
+  def get_message_with_reply(id) do
+    Message
+    |> Repo.get(id)
+    |> Repo.preload([:sender, :attachments, reply_to: :sender, reactions: :user])
+  end
+
+  @doc "Récupère les messages avec les réponses et réactions préchargées"
+  def list_messages_with_replies(conversation_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, @messages_per_page)
+    before_id = Keyword.get(opts, :before_id)
+    user_id = Keyword.get(opts, :user_id)
+
+    query =
+      Message
+      |> where(conversation_id: ^conversation_id)
+      |> order_by(desc: :inserted_at)
+      |> limit(^limit)
+      |> preload([:sender, :attachments, reply_to: :sender, reactions: :user])
+
+    query =
+      if before_id do
+        where(query, [m], m.id < ^before_id)
+      else
+        query
+      end
+
+    query
+    |> Repo.all()
+    |> Enum.reverse()
+    |> filter_deleted_messages(user_id)
+  end
+
+  defp filter_deleted_messages(messages, nil), do: messages
+  defp filter_deleted_messages(messages, user_id) do
+    Enum.filter(messages, fn msg ->
+      Message.visible_for?(msg, user_id)
+    end)
+  end
+
+  # ============== MESSAGE REACTIONS ==============
+
+  @doc "Ajoute ou retire une réaction à un message (toggle)"
+  def toggle_reaction(message_id, user_id, emoji) do
+    case get_reaction(message_id, user_id, emoji) do
+      nil ->
+        add_reaction(message_id, user_id, emoji)
+
+      reaction ->
+        remove_reaction(reaction)
+    end
+  end
+
+  @doc "Ajoute une réaction à un message"
+  def add_reaction(message_id, user_id, emoji) do
+    message = Repo.get(Message, message_id)
+
+    if message == nil do
+      {:error, :message_not_found}
+    else
+      result =
+        %MessageReaction{}
+        |> MessageReaction.changeset(%{
+          message_id: message_id,
+          user_id: user_id,
+          emoji: emoji
+        })
+        |> Repo.insert()
+
+      case result do
+        {:ok, reaction} ->
+          reaction = Repo.preload(reaction, :user)
+          broadcast_reaction_added(message.conversation_id, message_id, reaction)
+          {:ok, reaction}
+
+        {:error, %Ecto.Changeset{errors: [message_id_user_id_emoji: _]}} ->
+          # La réaction existe déjà
+          {:error, :already_exists}
+
+        error ->
+          error
+      end
+    end
+  end
+
+  @doc "Retire une réaction"
+  def remove_reaction(%MessageReaction{} = reaction) do
+    message = Repo.get(Message, reaction.message_id)
+
+    case Repo.delete(reaction) do
+      {:ok, _} ->
+        if message do
+          broadcast_reaction_removed(message.conversation_id, reaction.message_id, reaction)
+        end
+        {:ok, :removed}
+
+      error ->
+        error
+    end
+  end
+
+  @doc "Retire une réaction par ses identifiants"
+  def remove_reaction(message_id, user_id, emoji) do
+    case get_reaction(message_id, user_id, emoji) do
+      nil ->
+        {:error, :not_found}
+
+      reaction ->
+        remove_reaction(reaction)
+    end
+  end
+
+  @doc "Récupère une réaction spécifique"
+  def get_reaction(message_id, user_id, emoji) do
+    MessageReaction
+    |> where(message_id: ^message_id, user_id: ^user_id, emoji: ^emoji)
+    |> Repo.one()
+  end
+
+  @doc "Liste toutes les réactions d'un message"
+  def list_reactions(message_id) do
+    MessageReaction
+    |> where(message_id: ^message_id)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "Liste les réactions d'un message groupées par emoji"
+  def list_reactions_grouped(message_id) do
+    reactions = list_reactions(message_id)
+
+    reactions
+    |> Enum.group_by(& &1.emoji)
+    |> Enum.map(fn {emoji, reactions} ->
+      %{
+        emoji: emoji,
+        count: length(reactions),
+        users: Enum.map(reactions, & &1.user),
+        user_ids: Enum.map(reactions, & &1.user_id)
+      }
+    end)
+    |> Enum.sort_by(& &1.count, :desc)
+  end
+
+  @doc "Vérifie si un utilisateur a réagi avec un emoji donné"
+  def user_reacted?(message_id, user_id, emoji) do
+    MessageReaction
+    |> where(message_id: ^message_id, user_id: ^user_id, emoji: ^emoji)
+    |> Repo.exists?()
+  end
+
+  @doc "Récupère les messages avec leurs réactions"
+  def list_messages_with_reactions(conversation_id, opts \\ []) do
+    limit = Keyword.get(opts, :limit, @messages_per_page)
+    before_id = Keyword.get(opts, :before_id)
+    user_id = Keyword.get(opts, :user_id)
+
+    query =
+      Message
+      |> where(conversation_id: ^conversation_id)
+      |> order_by(desc: :inserted_at)
+      |> limit(^limit)
+      |> preload([:sender, :attachments, reply_to: :sender, reactions: :user])
+
+    query =
+      if before_id do
+        where(query, [m], m.id < ^before_id)
+      else
+        query
+      end
+
+    query
+    |> Repo.all()
+    |> Enum.reverse()
+    |> filter_deleted_messages(user_id)
+  end
+
+  defp broadcast_reaction_added(conversation_id, message_id, reaction) do
+    Phoenix.PubSub.broadcast(
+      MonApp.PubSub,
+      "chat:#{conversation_id}",
+      {:reaction_added, message_id, reaction}
+    )
+  end
+
+  defp broadcast_reaction_removed(conversation_id, message_id, reaction) do
+    Phoenix.PubSub.broadcast(
+      MonApp.PubSub,
+      "chat:#{conversation_id}",
+      {:reaction_removed, message_id, reaction}
+    )
   end
 end

@@ -34,13 +34,47 @@ const Hooks = {
   // Auto-scroll to bottom of messages container
   ScrollToBottom: {
     mounted() {
+      // Compter les messages initiaux
+      this.messageCount = this.countMessages()
       this.scrollToBottom()
+
       this.handleEvent("scroll_to_bottom", () => {
         this.scrollToBottom()
       })
+      // Handle scroll to specific message
+      this.handleEvent("scroll_to_message", ({ id }) => {
+        const element = document.getElementById(`message-${id}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          // Highlight briefly
+          element.classList.add('animate-pulse', 'bg-primary/10')
+          setTimeout(() => {
+            element.classList.remove('animate-pulse', 'bg-primary/10')
+          }, 2000)
+        }
+      })
+      // Handle copy to clipboard
+      this.handleEvent("copy_to_clipboard", ({ text }) => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(() => {
+            console.log("Copied to clipboard")
+          }).catch(err => {
+            console.error("Failed to copy:", err)
+          })
+        }
+      })
     },
     updated() {
-      this.scrollToBottom()
+      // Ne scroller que si de nouveaux messages ont été ajoutés
+      const newCount = this.countMessages()
+      if (newCount > this.messageCount) {
+        this.scrollToBottom()
+      }
+      this.messageCount = newCount
+    },
+    countMessages() {
+      // Compter les éléments de message (commençant par "message-")
+      return this.el.querySelectorAll('[id^="message-"]').length
     },
     scrollToBottom() {
       this.el.scrollTop = this.el.scrollHeight
@@ -237,6 +271,89 @@ const Hooks = {
     resize() {
       this.el.style.height = "auto"
       this.el.style.height = Math.min(this.el.scrollHeight, 112) + "px"
+    }
+  },
+
+  // Context menu for messages (long press on mobile, right-click on desktop)
+  MessageContextMenu: {
+    mounted() {
+      this.longPressTimer = null
+      this.longPressTriggered = false
+      const messageId = this.el.dataset.messageId
+
+      // Long press pour mobile
+      this.el.addEventListener("touchstart", (e) => {
+        this.longPressTriggered = false
+        this.longPressTimer = setTimeout(() => {
+          this.longPressTriggered = true
+          // Vibration feedback si disponible
+          if (navigator.vibrate) {
+            navigator.vibrate(50)
+          }
+          this.pushEvent("open_context_menu", { id: messageId })
+        }, 500) // 500ms pour long press
+      })
+
+      this.el.addEventListener("touchend", (e) => {
+        clearTimeout(this.longPressTimer)
+        // Empêcher le clic si long press a été déclenché
+        if (this.longPressTriggered) {
+          e.preventDefault()
+        }
+      })
+
+      this.el.addEventListener("touchmove", () => {
+        clearTimeout(this.longPressTimer)
+      })
+
+      this.el.addEventListener("touchcancel", () => {
+        clearTimeout(this.longPressTimer)
+      })
+
+      // Clic droit pour desktop (optionnel)
+      this.el.addEventListener("contextmenu", (e) => {
+        // Empêcher le menu contextuel natif seulement sur mobile
+        if (window.innerWidth < 768) {
+          e.preventDefault()
+        }
+      })
+    },
+
+    destroyed() {
+      clearTimeout(this.longPressTimer)
+    }
+  },
+
+  // Scroll to specific message
+  ScrollToMessage: {
+    mounted() {
+      this.handleEvent("scroll_to_message", ({ id }) => {
+        const element = document.getElementById(`message-${id}`)
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          // Highlight briefly
+          element.classList.add('bg-primary/10')
+          setTimeout(() => {
+            element.classList.remove('bg-primary/10')
+          }, 2000)
+        }
+      })
+    }
+  },
+
+  // Copy to clipboard
+  CopyToClipboard: {
+    mounted() {
+      this.handleEvent("copy_to_clipboard", ({ text }) => {
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text).then(() => {
+            // Feedback visuel optionnel
+            console.log("Copied to clipboard")
+          }).catch(err => {
+            console.error("Failed to copy:", err)
+          })
+        }
+      })
     }
   }
 }
