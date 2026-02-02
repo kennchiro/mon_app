@@ -26,10 +26,51 @@ import {hooks as colocatedHooks} from "phoenix-colocated/mon_app"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+
+// Custom hooks for chat
+const Hooks = {
+  ...colocatedHooks,
+
+  // Auto-scroll to bottom of messages container
+  ScrollToBottom: {
+    mounted() {
+      this.scrollToBottom()
+      this.handleEvent("scroll_to_bottom", () => {
+        this.scrollToBottom()
+      })
+    },
+    updated() {
+      this.scrollToBottom()
+    },
+    scrollToBottom() {
+      this.el.scrollTop = this.el.scrollHeight
+    }
+  },
+
+  // Auto-resize textarea
+  AutoResize: {
+    mounted() {
+      this.el.addEventListener("input", () => {
+        this.resize()
+      })
+      // Reset on form submit
+      this.el.form?.addEventListener("submit", () => {
+        setTimeout(() => {
+          this.el.style.height = "auto"
+        }, 10)
+      })
+    },
+    resize() {
+      this.el.style.height = "auto"
+      this.el.style.height = Math.min(this.el.scrollHeight, 128) + "px"
+    }
+  }
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: Hooks,
 })
 
 // Show progress bar on live navigation and form submits

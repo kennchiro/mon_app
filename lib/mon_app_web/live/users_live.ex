@@ -2,6 +2,7 @@ defmodule MonAppWeb.UsersLive do
   use MonAppWeb, :live_view
 
   alias MonApp.Social
+  alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
   import MonAppWeb.UserComponents
@@ -12,9 +13,17 @@ defmodule MonAppWeb.UsersLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    user_id = socket.assigns.current_user.id
+    user = socket.assigns.current_user
+    user_id = user.id
 
     if connected?(socket) do
+      # Tracker la présence de l'utilisateur
+      {:ok, _} = Presence.track(self(), "users:online", to_string(user_id), %{
+        user_id: user_id,
+        name: user.name,
+        online_at: System.system_time(:second)
+      })
+
       Phoenix.PubSub.subscribe(MonApp.PubSub, "#{@topic}:#{user_id}")
     end
 

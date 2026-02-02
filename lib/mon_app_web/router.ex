@@ -31,6 +31,7 @@ defmodule MonAppWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+    get "/chat", PageController, :redirect_to_conversations
   end
 
   # ============== AUTH LIVEVIEW (guests only) ==============
@@ -63,7 +64,8 @@ defmodule MonAppWeb.Router do
 
       live "/posts", PostsLive
       live "/users", UsersLive
-      live "/chat", ChatLive
+      live "/conversations", ConversationsLive
+      live "/chat/:id", ChatLive
       live "/profile", ProfileLive
     end
   end

@@ -12,8 +12,8 @@ defmodule MonApp.Application do
       MonApp.Repo,
       {DNSCluster, query: Application.get_env(:mon_app, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MonApp.PubSub},
-      # Start a worker by calling: MonApp.Worker.start_link(arg)
-      # {MonApp.Worker, arg},
+      # Presence pour le tracking des utilisateurs en ligne
+      MonAppWeb.Presence,
       # Start to serve requests, typically the last entry
       MonAppWeb.Endpoint
     ]
