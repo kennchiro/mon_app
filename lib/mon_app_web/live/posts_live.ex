@@ -286,16 +286,26 @@ defmodule MonAppWeb.PostsLive do
   @impl true
   def handle_event("toggle_reaction", %{"post-id" => post_id, "type" => reaction_type}, socket) do
     user = socket.assigns.current_user
+    post_id_int = String.to_integer(post_id)
 
-    case Blog.toggle_reaction(user.id, String.to_integer(post_id), reaction_type) do
+    case Blog.toggle_reaction(user.id, post_id_int, reaction_type) do
       {:ok, _result} ->
         # Recharger les réactions du post
-        updated_posts = update_post_reactions(socket.assigns.posts, String.to_integer(post_id))
+        updated_posts = update_post_reactions(socket.assigns.posts, post_id_int)
+
+        # Mettre à jour viewing_post si le modal est ouvert
+        socket = assign(socket, :posts, updated_posts)
+        socket = if socket.assigns.viewing_post && socket.assigns.viewing_post.id == post_id_int do
+          updated_viewing_post = Enum.find(updated_posts, fn p -> p.id == post_id_int end)
+          assign(socket, :viewing_post, updated_viewing_post)
+        else
+          socket
+        end
 
         # Broadcast pour les autres utilisateurs
-        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:reaction_updated, String.to_integer(post_id)})
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:reaction_updated, post_id_int})
 
-        {:noreply, assign(socket, :posts, updated_posts)}
+        {:noreply, socket}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Erreur lors de la réaction")}

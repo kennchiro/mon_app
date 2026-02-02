@@ -13,32 +13,28 @@ defmodule MonAppWeb.PostComponents do
 
   def post_form_trigger(assigns) do
     ~H"""
-    <div
-      class="card bg-base-100 shadow-sm mb-6 cursor-pointer hover:shadow-md transition-shadow"
-      phx-click="open_post_modal"
-    >
-      <div class="card-body py-4">
-        <div class="flex items-center gap-3">
-          <.user_avatar name={@current_user.name} />
-          <div class="flex-1 bg-base-200 rounded-full px-4 py-2.5 text-base-content/50 hover:bg-base-300 transition-colors">
-            Quoi de neuf, {@current_user.name |> String.split() |> List.first()} ?
+    <div class="bg-base-100 rounded-lg shadow-sm mb-4" phx-click="open_post_modal">
+      <div class="p-3">
+        <div class="flex items-center gap-2.5">
+          <.user_avatar name={@current_user.name} size="w-9 h-9" />
+          <div class="flex-1 bg-base-200 hover:bg-base-300 rounded-full px-4 py-2 text-[15px] text-base-content/50 cursor-pointer transition-colors">
+            What's on your mind, {@current_user.name |> String.split() |> List.first()}?
           </div>
         </div>
-        <div class="divider my-2 before:bg-white/20 after:bg-white/20"></div>
-        <div class="flex justify-around">
-          <button type="button" class="btn btn-ghost btn-sm gap-2 text-success">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Photo
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm gap-2 text-warning">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Humeur
-          </button>
-        </div>
+      </div>
+      <div class="border-t border-base-200 px-1 py-0.5 flex">
+        <button type="button" class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>Photo</span>
+        </button>
+        <button type="button" class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Feeling</span>
+        </button>
       </div>
     </div>
     """
@@ -729,6 +725,19 @@ defmodule MonAppWeb.PostComponents do
   attr :uploads, :map, required: true
 
   def post_detail_modal(assigns) do
+    # Préparer les données de réactions
+    reactions = Map.get(assigns.post, :reactions, [])
+    counts = Enum.reduce(reactions, %{}, fn r, acc ->
+      Map.update(acc, r.type, 1, &(&1 + 1))
+    end)
+    user_reaction = Enum.find(reactions, fn r -> r.user_id == assigns.current_user.id end)
+    reactions_data = %{counts: counts, total: length(reactions), user_reaction: user_reaction}
+    comment_count = length(assigns.post.comments || [])
+
+    assigns = assigns
+      |> assign(:reactions_data, reactions_data)
+      |> assign(:comment_count, comment_count)
+
     ~H"""
     <!-- Overlay -->
     <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -771,9 +780,35 @@ defmodule MonAppWeb.PostComponents do
 
             <!-- Post body -->
             <div class="mt-3">
-              <h3 class="font-semibold text-lg">{@post.title}</h3>
+              <h3 :if={@post.title} class="font-semibold text-lg">{@post.title}</h3>
               <p :if={@post.body} class="text-base-content/80 mt-1">{@post.body}</p>
-              <.post_images images={@post.images} />
+              <.post_images images={@post.images} post_id={@post.id} in_modal={true} />
+            </div>
+
+            <!-- Stats row -->
+            <div :if={@reactions_data.total > 0 || @comment_count > 0} class="mt-3 flex items-center justify-between text-[13px] text-base-content/60">
+              <button
+                :if={@reactions_data.total > 0}
+                type="button"
+                phx-click="open_reactions"
+                phx-value-id={@post.id}
+                class="flex items-center gap-1.5 hover:underline"
+              >
+                <div class="flex">
+                  <span :for={type <- top_reaction_types(@reactions_data.counts)} class="text-[15px]">
+                    {reaction_emoji(type)}
+                  </span>
+                </div>
+                <span>{@reactions_data.total}</span>
+              </button>
+              <div :if={@reactions_data.total == 0}></div>
+              <span :if={@comment_count > 0}>{@comment_count} comment{if @comment_count > 1, do: "s", else: ""}</span>
+              <div :if={@comment_count == 0}></div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="mt-2">
+              <.post_actions post={@post} current_user={@current_user} reactions_data={@reactions_data} show_comment_button={false} />
             </div>
           </div>
 
@@ -1072,11 +1107,19 @@ defmodule MonAppWeb.PostComponents do
 
   def post_list(assigns) do
     ~H"""
-    <div class="space-y-4">
-      <div class="flex items-center gap-2">
-        <h2 class="text-xl font-semibold">Fil d'actualité</h2>
-        <span class="badge badge-success badge-sm">Live</span>
-        <span class="text-base-content/50 text-sm">({length(@posts)} posts)</span>
+    <div class="space-y-4 md:space-y-6">
+      <!-- Header avec titre -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <h2 class="text-lg md:text-xl font-bold text-base-content">Fil d'actualité</h2>
+          <div class="flex items-center gap-1.5 px-2 py-0.5 bg-success/10 rounded-full">
+            <span class="w-2 h-2 bg-success rounded-full animate-pulse"></span>
+            <span class="text-success text-xs font-medium">Live</span>
+          </div>
+        </div>
+        <span class="text-base-content/40 text-xs md:text-sm font-medium">
+          {length(@posts)} publication{if length(@posts) > 1, do: "s", else: ""}
+        </span>
       </div>
 
       <.empty_state :if={@posts == []} />
@@ -1103,13 +1146,26 @@ defmodule MonAppWeb.PostComponents do
       |> assign(:reactions_data, reactions)
 
     ~H"""
-    <div id={"post-#{@post.id}"} class="card bg-base-100 shadow-sm">
-      <div class="card-body">
+    <article id={"post-#{@post.id}"} class="bg-base-100 rounded-lg shadow-sm">
+      <!-- Header compact -->
+      <div class="px-3 pt-3 pb-2">
         <.post_header post={@post} current_user={@current_user} />
-        <.post_content post={@post} />
-        <.post_actions post={@post} comment_count={@comment_count} current_user={@current_user} reactions_data={@reactions_data} />
       </div>
-    </div>
+
+      <!-- Text content -->
+      <.post_text post={@post} />
+
+      <!-- Image(s) -->
+      <.post_images images={@post.images} post_id={@post.id} />
+
+      <!-- Stats + Actions -->
+      <.post_footer
+        post={@post}
+        comment_count={@comment_count}
+        current_user={@current_user}
+        reactions_data={@reactions_data}
+      />
+    </article>
     """
   end
 
@@ -1132,104 +1188,143 @@ defmodule MonAppWeb.PostComponents do
     }
   end
 
-  # ============== POST ACTIONS ==============
+  # ============== POST FOOTER ==============
 
   attr :post, :map, required: true
   attr :comment_count, :integer, required: true
   attr :current_user, :map, required: true
   attr :reactions_data, :map, required: true
 
-  defp post_actions(assigns) do
+  defp post_footer(assigns) do
     ~H"""
-    <div class="mt-4 pt-3 border-t border-white/20">
-      <!-- Compteur de réactions et commentaires -->
-      <div class="flex items-center justify-between text-sm text-base-content/60 mb-2">
+    <div>
+      <!-- Stats row - style Facebook -->
+      <div :if={@reactions_data.total > 0 || @comment_count > 0} class="px-3 py-1.5 flex items-center justify-between text-[13px] text-base-content/60">
+        <!-- Réactions à gauche -->
         <button
           :if={@reactions_data.total > 0}
           type="button"
           phx-click="open_reactions"
           phx-value-id={@post.id}
-          class="flex items-center gap-1 hover:underline cursor-pointer"
+          class="flex items-center gap-1.5 hover:underline"
         >
-          <.reaction_summary counts={@reactions_data.counts} />
+          <div class="flex">
+            <span :for={type <- top_reaction_types(@reactions_data.counts)} class="text-[15px]">
+              {reaction_emoji(type)}
+            </span>
+          </div>
           <span>{@reactions_data.total}</span>
         </button>
-        <div :if={@comment_count > 0}>
-          {@comment_count} commentaire{if @comment_count > 1, do: "s", else: ""}
-        </div>
-      </div>
+        <div :if={@reactions_data.total == 0}></div>
 
-      <!-- Boutons d'action -->
-      <div class="flex gap-1 border-t border-white/20 pt-2">
-        <!-- Bouton réaction avec picker au hover -->
-        <div class="dropdown dropdown-top dropdown-hover flex-1">
-          <div
-            tabindex="0"
-            role="button"
-            class={"btn btn-ghost btn-sm flex-1 gap-2 w-full #{if @reactions_data.user_reaction, do: "text-primary", else: ""}"}
-          >
-            <span :if={@reactions_data.user_reaction} class="text-lg">
-              {reaction_emoji(@reactions_data.user_reaction.type)}
-            </span>
-            <svg :if={!@reactions_data.user_reaction} xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
-            </svg>
-            {if @reactions_data.user_reaction, do: reaction_label(@reactions_data.user_reaction.type), else: "J'aime"}
-          </div>
-          <!-- Picker de réactions (apparaît au hover) - pb-3 crée une zone de connexion -->
-          <div class="dropdown-content pb-3 z-50">
-            <div class="bg-base-100 rounded-full shadow-lg border border-white/20 p-1 flex gap-1">
-              <button
-                :for={type <- reaction_types()}
-                type="button"
-                phx-click="toggle_reaction"
-                phx-value-post-id={@post.id}
-                phx-value-type={type}
-                onclick="this.closest('.dropdown').querySelector('[tabindex]').blur()"
-                class={"btn btn-ghost btn-circle btn-sm hover:scale-125 transition-transform #{if @reactions_data.user_reaction && @reactions_data.user_reaction.type == type, do: "bg-primary/20", else: ""}"}
-                title={reaction_label(type)}
-              >
-                <span class="text-xl">{reaction_emoji(type)}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
+        <!-- Commentaires à droite -->
         <button
+          :if={@comment_count > 0}
           type="button"
           phx-click="open_comments"
           phx-value-id={@post.id}
-          class="btn btn-ghost btn-sm flex-1 gap-2"
+          class="hover:underline"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-          Commenter
+          {@comment_count} comment{if @comment_count > 1, do: "s", else: ""}
         </button>
+        <div :if={@comment_count == 0}></div>
       </div>
+
+      <!-- Action buttons -->
+      <div class="mx-3">
+        <.post_actions post={@post} current_user={@current_user} reactions_data={@reactions_data} />
+      </div>
+    </div>
+    """
+  end
+
+  # Helper pour obtenir les top types de réactions
+  defp top_reaction_types(counts) do
+    counts
+    |> Enum.sort_by(fn {_type, count} -> count end, :desc)
+    |> Enum.take(3)
+    |> Enum.map(fn {type, _count} -> type end)
+  end
+
+  # ============== POST ACTIONS (Reusable Component) ==============
+
+  attr :post, :map, required: true
+  attr :current_user, :map, required: true
+  attr :reactions_data, :map, required: true
+  attr :show_comment_button, :boolean, default: true
+
+  def post_actions(assigns) do
+    ~H"""
+    <div class="border-t border-base-200 py-1 flex">
+      <!-- Like button avec picker -->
+      <div class="dropdown dropdown-top dropdown-hover flex-1">
+        <button
+          tabindex="0"
+          type="button"
+          class={"flex-1 w-full py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold transition-colors " <>
+            if @reactions_data.user_reaction do
+              "text-primary hover:bg-primary/5"
+            else
+              "text-base-content/60 hover:bg-base-200"
+            end}
+        >
+          <span :if={@reactions_data.user_reaction} class="text-base">
+            {reaction_emoji(@reactions_data.user_reaction.type)}
+          </span>
+          <svg :if={!@reactions_data.user_reaction} xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+          </svg>
+          <span>{if @reactions_data.user_reaction, do: reaction_label(@reactions_data.user_reaction.type), else: "Like"}</span>
+        </button>
+        <!-- Reaction picker -->
+        <div class="dropdown-content pb-2 z-50">
+          <div class="bg-base-100 rounded-full shadow-xl border border-base-300 p-1 flex gap-0.5">
+            <button
+              :for={type <- reaction_types()}
+              type="button"
+              phx-click="toggle_reaction"
+              phx-value-post-id={@post.id}
+              phx-value-type={type}
+              onclick="this.closest('.dropdown').querySelector('[tabindex]').blur()"
+              class={"w-9 h-9 rounded-full flex items-center justify-center hover:scale-125 active:scale-110 transition-transform " <>
+                if @reactions_data.user_reaction && @reactions_data.user_reaction.type == type, do: "bg-primary/20 scale-110", else: ""}
+              title={reaction_label(type)}
+            >
+              <span class="text-2xl">{reaction_emoji(type)}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comment button -->
+      <button
+        :if={@show_comment_button}
+        type="button"
+        phx-click="open_comments"
+        phx-value-id={@post.id}
+        class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+        <span>Comment</span>
+      </button>
+
+      <!-- Share button -->
+      <button
+        type="button"
+        class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200 transition-colors"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+        </svg>
+        <span>Share</span>
+      </button>
     </div>
     """
   end
 
   # ============== REACTION HELPERS ==============
-
-  attr :counts, :map, required: true
-
-  defp reaction_summary(assigns) do
-    # Trier les réactions par nombre (desc) et prendre les 3 premières
-    top_reactions = assigns.counts
-      |> Enum.sort_by(fn {_type, count} -> count end, :desc)
-      |> Enum.take(3)
-      |> Enum.map(fn {type, _count} -> type end)
-
-    assigns = assign(assigns, :top_reactions, top_reactions)
-
-    ~H"""
-    <div class="flex -space-x-1">
-      <span :for={type <- @top_reactions} class="text-sm">{reaction_emoji(type)}</span>
-    </div>
-    """
-  end
 
   attr :counts, :map, required: true
 
@@ -1274,21 +1369,57 @@ defmodule MonAppWeb.PostComponents do
 
   defp post_header(assigns) do
     ~H"""
-    <div class="flex items-start gap-3">
-      <.user_avatar name={@post.user.name} />
+    <div class="flex items-center gap-2.5">
+      <.user_avatar name={@post.user.name} size="w-9 h-9" />
 
-      <div class="flex-1">
-        <div class="flex items-center gap-2">
-          <span class="font-semibold">{@post.user.name}</span>
-          <.visibility_badge visibility={@post.visibility} />
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <span class="font-semibold text-[15px] text-base-content hover:underline cursor-pointer">
+            {@post.user.name}
+          </span>
         </div>
-        <span class="text-sm text-base-content/50" title={Calendar.strftime(@post.inserted_at, "%d %b %Y à %H:%M")}>
-          {time_ago(@post.inserted_at)}
-        </span>
+        <div class="flex items-center gap-1 text-[13px] text-base-content/50">
+          <span>{time_ago(@post.inserted_at)}</span>
+          <span>·</span>
+          <.visibility_icon_small visibility={@post.visibility} />
+        </div>
       </div>
 
       <.post_menu :if={@post.user_id == @current_user.id} post={@post} />
     </div>
+    """
+  end
+
+  # Petite icône de visibilité style Facebook
+  defp visibility_icon_small(%{visibility: "public"} = assigns) do
+    ~H"""
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM2.04 4.326c.325 1.329 2.532 2.54 3.717 3.19.48.263.793.434.743.484-.08.08-.162.158-.242.234-.416.396-.787.749-.758 1.266.035.634.618.824 1.214 1.017.577.188 1.168.38 1.286.983.082.417-.075.988-.22 1.52-.215.782-.406 1.48.22 1.48 1.5-.5 3.798-3.186 4-5 .138-1.243-2-2-3.5-2.5-.478-.16-.755.081-.99.284-.172.15-.322.279-.51.216-.445-.148-2.5-2-1.5-2.5.78-.39.952-.171 1.227.182.078.099.163.208.273.318.609.304.662-.132.723-.633.039-.322.081-.671.277-.867.434-.434 1.265-.791 2.028-1.12.712-.306 1.365-.587 1.579-.88A7 7 0 1 1 2.04 4.327Z"/>
+    </svg>
+    """
+  end
+
+  defp visibility_icon_small(%{visibility: "friends"} = assigns) do
+    ~H"""
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7Zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm-5.784 6A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216ZM4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"/>
+    </svg>
+    """
+  end
+
+  defp visibility_icon_small(%{visibility: "private"} = assigns) do
+    ~H"""
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2Zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/>
+    </svg>
+    """
+  end
+
+  defp visibility_icon_small(assigns) do
+    ~H"""
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="currentColor" viewBox="0 0 16 16">
+      <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0ZM2.04 4.326c.325 1.329 2.532 2.54 3.717 3.19.48.263.793.434.743.484-.08.08-.162.158-.242.234-.416.396-.787.749-.758 1.266.035.634.618.824 1.214 1.017.577.188 1.168.38 1.286.983.082.417-.075.988-.22 1.52-.215.782-.406 1.48.22 1.48 1.5-.5 3.798-3.186 4-5 .138-1.243-2-2-3.5-2.5-.478-.16-.755.081-.99.284-.172.15-.322.279-.51.216-.445-.148-2.5-2-1.5-2.5.78-.39.952-.171 1.227.182.078.099.163.208.273.318.609.304.662-.132.723-.633.039-.322.081-.671.277-.867.434-.434 1.265-.791 2.028-1.12.712-.306 1.365-.587 1.579-.88A7 7 0 1 1 2.04 4.327Z"/>
+    </svg>
     """
   end
 
@@ -1298,55 +1429,61 @@ defmodule MonAppWeb.PostComponents do
 
   defp visibility_badge(%{visibility: "public"} = assigns) do
     ~H"""
-    <span class="badge badge-ghost badge-xs gap-1">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium bg-base-200 text-base-content/60">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5 md:h-3 md:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
       </svg>
-      Public
+      <span class="hidden md:inline">Public</span>
     </span>
     """
   end
 
   defp visibility_badge(%{visibility: "friends"} = assigns) do
     ~H"""
-    <span class="badge badge-info badge-xs gap-1">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium bg-info/10 text-info">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5 md:h-3 md:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
       </svg>
-      Amis
+      <span class="hidden md:inline">Amis</span>
     </span>
     """
   end
 
   defp visibility_badge(%{visibility: "private"} = assigns) do
     ~H"""
-    <span class="badge badge-warning badge-xs gap-1">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium bg-warning/10 text-warning">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5 md:h-3 md:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
       </svg>
-      Privé
+      <span class="hidden md:inline">Privé</span>
     </span>
     """
   end
 
   defp visibility_badge(assigns) do
     ~H"""
-    <span class="badge badge-ghost badge-xs">Public</span>
+    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] md:text-xs font-medium bg-base-200 text-base-content/60">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5 md:h-3 md:w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+      </svg>
+      <span class="hidden md:inline">Public</span>
+    </span>
     """
   end
 
-  # ============== POST CONTENT ==============
+  # ============== POST TEXT ==============
 
   attr :post, :map, required: true
 
-  defp post_content(assigns) do
+  defp post_text(assigns) do
     ~H"""
-    <div class="mt-3">
-      <h3 class="font-semibold text-lg">{@post.title}</h3>
-      <p :if={@post.body} class="text-base-content/80 mt-1">{@post.body}</p>
-
-      <!-- Images du post -->
-      <.post_images images={@post.images} />
+    <div :if={@post.title || @post.body} class="px-3 pb-2 space-y-1">
+      <p :if={@post.title} class="text-[15px] text-base-content font-semibold leading-snug">
+        {@post.title}
+      </p>
+      <p :if={@post.body} class="text-[15px] text-base-content leading-snug">
+        {@post.body}
+      </p>
     </div>
     """
   end
@@ -1354,89 +1491,114 @@ defmodule MonAppWeb.PostComponents do
   # ============== POST IMAGES ==============
 
   attr :images, :list, required: true
+  attr :post_id, :integer, default: nil
+  attr :in_modal, :boolean, default: false
 
-  defp post_images(%{images: []} = assigns), do: ~H""
+  def post_images(%{images: []} = assigns), do: ~H""
 
-  defp post_images(%{images: [_image]} = assigns) do
+  def post_images(%{images: [_image]} = assigns) do
     ~H"""
-    <div class="mt-3">
+    <div
+      class="cursor-pointer"
+      phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
+      phx-value-src={"/uploads/posts/#{@images |> List.first() |> Map.get(:filename)}"}
+      phx-value-id={@post_id}
+    >
       <img
         src={"/uploads/posts/#{@images |> List.first() |> Map.get(:filename)}"}
         alt="Image du post"
-        class="rounded-lg max-h-96 w-auto cursor-pointer hover:opacity-90 transition-opacity"
-        phx-click="open_image_preview"
-        phx-value-src={"/uploads/posts/#{@images |> List.first() |> Map.get(:filename)}"}
+        class="w-full max-h-[500px] object-cover"
       />
     </div>
     """
   end
 
-  defp post_images(%{images: images} = assigns) when length(images) == 2 do
+  def post_images(%{images: images} = assigns) when length(images) == 2 do
     ~H"""
-    <div class="mt-3 grid grid-cols-2 gap-2">
-      <img
+    <div class="grid grid-cols-2 gap-[1px] bg-base-300">
+      <div
         :for={image <- @images}
-        src={"/uploads/posts/#{image.filename}"}
-        alt="Image du post"
-        class="rounded-lg h-48 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-        phx-click="open_image_preview"
+        class="cursor-pointer"
+        phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
         phx-value-src={"/uploads/posts/#{image.filename}"}
-      />
+        phx-value-id={@post_id}
+      >
+        <img
+          src={"/uploads/posts/#{image.filename}"}
+          alt="Image du post"
+          class="w-full h-[200px] object-cover"
+        />
+      </div>
     </div>
     """
   end
 
-  defp post_images(%{images: images} = assigns) when length(images) == 3 do
+  def post_images(%{images: images} = assigns) when length(images) == 3 do
     ~H"""
-    <div class="mt-3 grid grid-cols-2 gap-2">
-      <img
-        src={"/uploads/posts/#{Enum.at(@images, 0).filename}"}
-        alt="Image du post"
-        class="rounded-lg h-48 w-full object-cover row-span-2 cursor-pointer hover:opacity-90 transition-opacity"
-        phx-click="open_image_preview"
+    <div class="grid grid-cols-2 gap-[1px] bg-base-300">
+      <div
+        class="row-span-2 cursor-pointer"
+        phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
         phx-value-src={"/uploads/posts/#{Enum.at(@images, 0).filename}"}
-      />
-      <img
-        src={"/uploads/posts/#{Enum.at(@images, 1).filename}"}
-        alt="Image du post"
-        class="rounded-lg h-24 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-        phx-click="open_image_preview"
+        phx-value-id={@post_id}
+      >
+        <img
+          src={"/uploads/posts/#{Enum.at(@images, 0).filename}"}
+          alt="Image du post"
+          class="w-full h-full object-cover"
+        />
+      </div>
+      <div
+        class="cursor-pointer"
+        phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
         phx-value-src={"/uploads/posts/#{Enum.at(@images, 1).filename}"}
-      />
-      <img
-        src={"/uploads/posts/#{Enum.at(@images, 2).filename}"}
-        alt="Image du post"
-        class="rounded-lg h-24 w-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-        phx-click="open_image_preview"
+        phx-value-id={@post_id}
+      >
+        <img
+          src={"/uploads/posts/#{Enum.at(@images, 1).filename}"}
+          alt="Image du post"
+          class="w-full h-[150px] object-cover"
+        />
+      </div>
+      <div
+        class="cursor-pointer"
+        phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
         phx-value-src={"/uploads/posts/#{Enum.at(@images, 2).filename}"}
-      />
+        phx-value-id={@post_id}
+      >
+        <img
+          src={"/uploads/posts/#{Enum.at(@images, 2).filename}"}
+          alt="Image du post"
+          class="w-full h-[150px] object-cover"
+        />
+      </div>
     </div>
     """
   end
 
-  defp post_images(assigns) do
+  def post_images(assigns) do
     extra_count = length(assigns.images) - 4
     assigns = assign(assigns, :extra_count, extra_count)
 
     ~H"""
-    <div class="mt-3 grid grid-cols-2 gap-2">
+    <div class="grid grid-cols-2 gap-[1px] bg-base-300">
       <%= for {image, index} <- Enum.take(@images, 4) |> Enum.with_index() do %>
         <div
           class="relative cursor-pointer"
-          phx-click="open_image_preview"
+          phx-click={if @in_modal, do: "open_image_preview", else: "open_comments"}
           phx-value-src={"/uploads/posts/#{image.filename}"}
+          phx-value-id={@post_id}
         >
           <img
             src={"/uploads/posts/#{image.filename}"}
             alt="Image du post"
-            class="rounded-lg h-32 w-full object-cover hover:opacity-90 transition-opacity"
+            class="w-full h-[150px] object-cover"
           />
-          <!-- Overlay +X sur la 4ème image si plus de 4 images -->
           <div
             :if={index == 3 and @extra_count > 0}
-            class="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center pointer-events-none"
+            class="absolute inset-0 bg-black/50 flex items-center justify-center"
           >
-            <span class="text-white text-2xl font-bold">+{@extra_count}</span>
+            <span class="text-white text-2xl font-semibold">+{@extra_count}</span>
           </div>
         </div>
       <% end %>
@@ -1451,29 +1613,24 @@ defmodule MonAppWeb.PostComponents do
   defp post_menu(assigns) do
     ~H"""
     <div class="dropdown dropdown-end">
-      <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+      <button tabindex="0" type="button" class="w-8 h-8 rounded-full flex items-center justify-center text-base-content/50 hover:bg-base-200">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
         </svg>
-      </div>
-      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-40 p-2 shadow-lg border border-white/20">
+      </button>
+      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-lg z-[1] w-44 p-1 shadow-lg border border-base-200">
         <li>
-          <button phx-click="edit_post" phx-value-id={@post.id}>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          <button phx-click="edit_post" phx-value-id={@post.id} class="text-[13px] py-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Modifier
           </button>
         </li>
         <li>
-          <button
-            phx-click="delete"
-            phx-value-id={@post.id}
-            data-confirm="Supprimer ce post ?"
-            class="text-error"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          <button phx-click="delete" phx-value-id={@post.id} data-confirm="Supprimer ce post ?" class="text-[13px] py-2 text-error">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
             Supprimer
           </button>
@@ -1489,10 +1646,16 @@ defmodule MonAppWeb.PostComponents do
   attr :size, :string, default: "w-10 h-10"
 
   def user_avatar(assigns) do
+    # Generate a consistent color based on the name
+    colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"]
+    color_index = :erlang.phash2(assigns.name, length(colors))
+    color = Enum.at(colors, color_index)
+    assigns = assign(assigns, :bg_color, color)
+
     ~H"""
-    <div class={"#{@size} rounded-full bg-primary grid place-items-center"}>
-      <span class="text-primary-content text-lg font-bold leading-none">
-        {String.first(@name)}
+    <div class={"#{@size} rounded-full #{@bg_color} flex items-center justify-center flex-shrink-0"}>
+      <span class="text-white font-semibold text-sm">
+        {String.first(@name) |> String.upcase()}
       </span>
     </div>
     """
@@ -1502,10 +1665,16 @@ defmodule MonAppWeb.PostComponents do
 
   defp empty_state(assigns) do
     ~H"""
-    <div class="card bg-base-100 shadow-sm">
-      <div class="card-body text-center text-base-content/50">
-        Aucun post pour le moment. Soyez le premier à publier !
+    <div class="bg-base-100 rounded-xl md:rounded-2xl shadow-sm p-8 md:p-12 text-center">
+      <div class="w-16 h-16 md:w-20 md:h-20 mx-auto mb-4 rounded-full bg-base-200 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 md:h-10 md:w-10 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
       </div>
+      <h3 class="text-lg md:text-xl font-semibold text-base-content mb-2">Aucune publication</h3>
+      <p class="text-sm md:text-base text-base-content/50 max-w-sm mx-auto">
+        Il n'y a pas encore de publications. Soyez le premier à partager quelque chose !
+      </p>
     </div>
     """
   end
