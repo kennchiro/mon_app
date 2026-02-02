@@ -16,7 +16,7 @@ defmodule MonAppWeb.PostComponents do
     <div class="bg-base-100 rounded-lg shadow-sm mb-4" phx-click="open_post_modal">
       <div class="p-3">
         <div class="flex items-center gap-2.5">
-          <.user_avatar name={@current_user.name} size="w-9 h-9" />
+          <.user_avatar name={@current_user.name} avatar={@current_user.avatar} size="w-9 h-9" />
           <div class="flex-1 bg-base-200 hover:bg-base-300 rounded-full px-4 py-2 text-[15px] text-base-content/50 cursor-pointer transition-colors">
             What's on your mind, {@current_user.name |> String.split() |> List.first()}?
           </div>
@@ -75,7 +75,7 @@ defmodule MonAppWeb.PostComponents do
           <div class="p-4 flex-1 overflow-y-auto space-y-4">
             <!-- User info + visibility -->
             <div class="flex items-center gap-3">
-              <.user_avatar name={@current_user.name} />
+              <.user_avatar name={@current_user.name} avatar={@current_user.avatar} />
               <div>
                 <div class="font-semibold">{@current_user.name}</div>
                 <!-- Visibility dropdown -->
@@ -252,7 +252,7 @@ defmodule MonAppWeb.PostComponents do
           <div class="p-4 flex-1 overflow-y-auto space-y-4">
             <!-- User info + visibility -->
             <div class="flex items-center gap-3">
-              <.user_avatar name={@current_user.name} />
+              <.user_avatar name={@current_user.name} avatar={@current_user.avatar} />
               <div>
                 <div class="font-semibold">{@current_user.name}</div>
                 <!-- Visibility dropdown -->
@@ -599,7 +599,7 @@ defmodule MonAppWeb.PostComponents do
     <div class="flex items-center gap-3 p-3 hover:bg-base-200/50">
       <!-- Avatar avec emoji réaction -->
       <div class="relative">
-        <.user_avatar name={@reaction.user.name} size="w-8 h-8" />
+        <.user_avatar name={@reaction.user.name} avatar={@reaction.user.avatar} size="w-8 h-8" />
         <span class="absolute -bottom-1 -right-1 text-xs bg-base-100 rounded-full">
           {reaction_emoji(@reaction.type)}
         </span>
@@ -657,7 +657,7 @@ defmodule MonAppWeb.PostComponents do
     <div class="flex items-center gap-3 p-3 hover:bg-base-200/50">
       <!-- Avatar avec emoji réaction -->
       <div class="relative">
-        <.user_avatar name={@reaction.user.name} />
+        <.user_avatar name={@reaction.user.name} avatar={@reaction.user.avatar} />
         <span class="absolute -bottom-1 -right-1 text-sm bg-base-100 rounded-full">
           {reaction_emoji(@reaction.type)}
         </span>
@@ -766,7 +766,7 @@ defmodule MonAppWeb.PostComponents do
           <div class="p-4 border-b border-white/20">
             <!-- Post header -->
             <div class="flex items-start gap-3">
-              <.user_avatar name={@post.user.name} />
+              <.user_avatar name={@post.user.name} avatar={@post.user.avatar} />
               <div class="flex-1">
                 <div class="flex items-center gap-2">
                   <span class="font-semibold">{@post.user.name}</span>
@@ -878,7 +878,7 @@ defmodule MonAppWeb.PostComponents do
           <.form for={@comment_form} phx-submit={if @replying_to, do: "add_reply", else: "add_comment"} phx-change="validate_comment" id={"comment-form-#{@comment_form_id}"} class="flex items-start gap-3">
             <input type="hidden" name="comment[post_id]" value={@post.id} />
             <input :if={@replying_to} type="hidden" name="comment[parent_id]" value={@replying_to.id} />
-            <.user_avatar name={@current_user.name} size="w-9 h-9" />
+            <.user_avatar name={@current_user.name} avatar={@current_user.avatar} size="w-9 h-9" />
             <div class="flex-1">
               <div class="relative flex items-center bg-base-200 rounded-2xl">
                 <input
@@ -952,7 +952,7 @@ defmodule MonAppWeb.PostComponents do
           <div class="p-4 flex-1 overflow-y-auto space-y-4">
             <!-- User info + visibility -->
             <div class="flex items-center gap-3">
-              <.user_avatar name={@current_user.name} />
+              <.user_avatar name={@current_user.name} avatar={@current_user.avatar} />
               <div>
                 <div class="font-semibold">{@current_user.name}</div>
                 <!-- Visibility dropdown -->
@@ -1022,7 +1022,7 @@ defmodule MonAppWeb.PostComponents do
             <div class="border border-base-300 rounded-lg overflow-hidden bg-base-200/50">
               <div class="p-3">
                 <div class="flex items-center gap-2.5">
-                  <.user_avatar name={@post.user.name} size="w-8 h-8" />
+                  <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-8 h-8" />
                   <div>
                     <span class="font-semibold text-sm">{@post.user.name}</span>
                     <div class="text-xs text-base-content/50">{time_ago(@post.inserted_at)}</div>
@@ -1103,7 +1103,7 @@ defmodule MonAppWeb.PostComponents do
 
     ~H"""
     <div class="flex gap-3 items-start">
-      <.user_avatar name={@comment.user.name} size={if @is_reply, do: "w-6 h-6", else: "w-8 h-8"} />
+      <.user_avatar name={@comment.user.name} avatar={@comment.user.avatar} size={if @is_reply, do: "w-6 h-6", else: "w-8 h-8"} />
       <div class="flex-1 min-w-0">
         <!-- Bulle du commentaire -->
         <div class="inline-block max-w-[85%]">
@@ -1328,7 +1328,7 @@ defmodule MonAppWeb.PostComponents do
       <!-- Shared post header -->
       <div class="p-3 pb-2">
         <div class="flex items-center gap-2">
-          <.user_avatar name={@shared_post.user.name} size="w-8 h-8" />
+          <.user_avatar name={@shared_post.user.name} avatar={@shared_post.user.avatar} size="w-8 h-8" />
           <div>
             <span class="font-semibold text-sm">{@shared_post.user.name}</span>
             <div class="text-xs text-base-content/50">{time_ago(@shared_post.inserted_at)}</div>
@@ -1569,7 +1569,7 @@ defmodule MonAppWeb.PostComponents do
   defp post_header(assigns) do
     ~H"""
     <div class="flex items-center gap-2.5">
-      <.user_avatar name={@post.user.name} size="w-9 h-9" />
+      <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-9 h-9" />
 
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 flex-wrap">
@@ -1845,6 +1845,7 @@ defmodule MonAppWeb.PostComponents do
   # ============== USER AVATAR ==============
 
   attr :name, :string, required: true
+  attr :avatar, :string, default: nil
   attr :size, :string, default: "w-10 h-10"
 
   def user_avatar(assigns) do
@@ -1855,11 +1856,17 @@ defmodule MonAppWeb.PostComponents do
     assigns = assign(assigns, :bg_color, color)
 
     ~H"""
-    <div class={"#{@size} rounded-full #{@bg_color} flex items-center justify-center flex-shrink-0"}>
-      <span class="text-white font-semibold text-sm">
-        {String.first(@name) |> String.upcase()}
-      </span>
-    </div>
+    <%= if @avatar do %>
+      <div class={"#{@size} rounded-full overflow-hidden flex-shrink-0"}>
+        <img src={"/uploads/avatars/#{@avatar}"} alt={@name} class="w-full h-full object-cover" />
+      </div>
+    <% else %>
+      <div class={"#{@size} rounded-full #{@bg_color} flex items-center justify-center flex-shrink-0"}>
+        <span class="text-white font-semibold text-sm">
+          {String.first(@name) |> String.upcase()}
+        </span>
+      </div>
+    <% end %>
     """
   end
 

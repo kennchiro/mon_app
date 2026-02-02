@@ -81,6 +81,38 @@ defmodule MonApp.Accounts do
     end
   end
 
+  # ============== AVATAR ==============
+
+  @uploads_dir "priv/static/uploads/avatars"
+
+  @doc "Retourne le répertoire des uploads avatars"
+  def avatars_dir, do: @uploads_dir
+
+  @doc "Met à jour l'avatar d'un user"
+  def update_avatar(%User{} = user, avatar_filename) do
+    # Supprimer l'ancien avatar si existant
+    if user.avatar do
+      old_path = Path.join(@uploads_dir, user.avatar)
+      File.rm(old_path)
+    end
+
+    user
+    |> User.avatar_changeset(%{avatar: avatar_filename})
+    |> Repo.update()
+  end
+
+  @doc "Supprime l'avatar d'un user"
+  def delete_avatar(%User{} = user) do
+    if user.avatar do
+      path = Path.join(@uploads_dir, user.avatar)
+      File.rm(path)
+    end
+
+    user
+    |> User.avatar_changeset(%{avatar: nil})
+    |> Repo.update()
+  end
+
   # ============== HELPERS ==============
 
   @doc "Retourne un changeset vide pour les formulaires"

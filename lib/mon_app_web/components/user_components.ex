@@ -84,7 +84,7 @@ defmodule MonAppWeb.UserComponents do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body flex-row items-center gap-4 py-4">
-        <PostComponents.user_avatar name={@user.name} />
+        <PostComponents.user_avatar name={@user.name} avatar={@user.avatar} />
 
         <div class="flex-1">
           <h3 class="font-semibold">{@user.name}</h3>

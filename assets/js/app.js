@@ -236,6 +236,9 @@ const Hooks = {
   // Chat input with auto-resize and Enter to send
   ChatInput: {
     mounted() {
+      // Initial resize
+      this.resize()
+
       this.el.addEventListener("input", () => {
         this.resize()
       })
@@ -249,6 +252,12 @@ const Hooks = {
           const hasText = this.el.value.trim() !== ""
           const hasImages = document.querySelectorAll('[phx-click="cancel-chat-upload"]').length > 0
           if (form && (hasText || hasImages)) {
+            // Add subtle feedback
+            const submitBtn = form.querySelector('button[type="submit"]')
+            if (submitBtn) {
+              submitBtn.classList.add('scale-95')
+              setTimeout(() => submitBtn.classList.remove('scale-95'), 100)
+            }
             form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }))
           }
         }
@@ -259,22 +268,32 @@ const Hooks = {
         setTimeout(() => {
           this.el.style.height = "auto"
           this.el.value = ""
+          this.resize()
           this.el.focus()
         }, 10)
       })
 
-      // Focus initial
-      this.el.focus()
+      // Focus initial avec délai pour mobile
+      setTimeout(() => {
+        // Ne pas auto-focus sur mobile pour éviter l'ouverture du clavier
+        if (window.innerWidth >= 768) {
+          this.el.focus()
+        }
+      }, 100)
     },
     updated() {
-      // Re-focus après mise à jour si le champ est vide
-      if (this.el.value === "") {
+      // Re-focus après mise à jour si le champ est vide (desktop only)
+      if (this.el.value === "" && window.innerWidth >= 768) {
         this.el.focus()
       }
+      this.resize()
     },
     resize() {
+      // Reset height to recalculate
       this.el.style.height = "auto"
-      this.el.style.height = Math.min(this.el.scrollHeight, 112) + "px"
+      // Calculate new height with max limit
+      const newHeight = Math.min(this.el.scrollHeight, 128)
+      this.el.style.height = newHeight + "px"
     }
   },
 
@@ -286,7 +305,7 @@ const Hooks = {
       const messageId = this.el.dataset.messageId
 
       // Long press pour mobile
-      this.el.addEventListener("touchstart", (e) => {
+      this.el.addEventListener("touchstart", () => {
         this.longPressTriggered = false
         this.longPressTimer = setTimeout(() => {
           this.longPressTriggered = true

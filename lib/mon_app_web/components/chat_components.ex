@@ -59,21 +59,22 @@ defmodule MonAppWeb.ChatComponents do
     unread_count = conversation.unread_count || 0
 
     # Déterminer le nom et l'avatar à afficher
-    {display_name, avatar_name, online} = if conversation.is_group do
+    {display_name, avatar_name, avatar_image, online} = if conversation.is_group do
       # Pour les groupes
-      {conversation.name, conversation.name, false}
+      {conversation.name, conversation.name, nil, false}
     else
       # Pour les chats 1-à-1
       other_user = Conversation.other_user(conversation, current_user_id)
       other_user_id = Conversation.other_user_id(conversation, current_user_id)
       is_online = other_user_id in assigns.online_users
-      {other_user.name, other_user.name, is_online}
+      {other_user.name, other_user.name, other_user.avatar, is_online}
     end
 
     assigns =
       assigns
       |> assign(:display_name, display_name)
       |> assign(:avatar_name, avatar_name)
+      |> assign(:avatar_image, avatar_image)
       |> assign(:online, online)
       |> assign(:last_message, last_message)
       |> assign(:unread_count, unread_count)
@@ -92,7 +93,7 @@ defmodule MonAppWeb.ChatComponents do
         <%= if @is_group do %>
           <.group_avatar name={@avatar_name} size="w-14 h-14" text_size="text-xl" />
         <% else %>
-          <.user_avatar name={@avatar_name} size="w-14 h-14" text_size="text-xl" />
+          <.user_avatar name={@avatar_name} avatar={@avatar_image} size="w-14 h-14" text_size="text-xl" />
           <span
             :if={@online}
             class="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-success border-[2.5px] border-base-100"
@@ -326,7 +327,7 @@ defmodule MonAppWeb.ChatComponents do
 
         <!-- Avatar pour les messages de groupe (autres utilisateurs) -->
         <div :if={@is_group && !@is_mine} class="shrink-0 self-end">
-          <.user_avatar name={@message.sender.name} size="w-7 h-7" text_size="text-[10px]" />
+          <.user_avatar name={@message.sender.name} avatar={@message.sender.avatar} size="w-7 h-7" text_size="text-[10px]" />
         </div>
 
         <div class="max-w-[70%]">
@@ -1072,7 +1073,7 @@ defmodule MonAppWeb.ChatComponents do
 
   def chat_input(assigns) do
     ~H"""
-    <div class="border-t border-base-200 bg-base-100">
+    <div class="bg-base-100 border-t border-base-200/60">
       <!-- Reply preview -->
       <.reply_preview :if={@reply_message} reply_message={@reply_message} />
 
@@ -1080,82 +1081,103 @@ defmodule MonAppWeb.ChatComponents do
         for={@form}
         phx-submit="send_message"
         phx-change="validate_chat"
-        class="p-3"
+        class="px-3 py-2 safe-area-bottom"
       >
-      <!-- Preview des images à uploader -->
-      <div :if={@uploads && @uploads.chat_images.entries != []} class="mb-2 flex flex-wrap gap-2">
-        <div
-          :for={entry <- @uploads.chat_images.entries}
-          class="relative group"
-        >
-          <div class="w-16 h-16 rounded-lg overflow-hidden bg-base-200">
-            <.live_img_preview entry={entry} class="w-full h-full object-cover" />
+        <!-- Preview des images à uploader -->
+        <div :if={@uploads && @uploads.chat_images.entries != []} class="mb-3 px-1">
+          <div class="flex flex-wrap gap-2">
+            <div
+              :for={entry <- @uploads.chat_images.entries}
+              class="relative group animate-scale-in"
+            >
+              <div class="w-20 h-20 rounded-xl overflow-hidden bg-base-200 ring-1 ring-base-300/50 shadow-sm">
+                <.live_img_preview entry={entry} class="w-full h-full object-cover" />
+              </div>
+              <!-- Bouton supprimer -->
+              <button
+                type="button"
+                phx-click="cancel-chat-upload"
+                phx-value-ref={entry.ref}
+                class="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center rounded-full bg-base-100 shadow-md border border-base-300 text-base-content/70 hover:text-error hover:border-error/30 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <!-- Barre de progression -->
+              <div :if={entry.progress > 0 && entry.progress < 100} class="absolute bottom-0 left-0 right-0 h-1.5 bg-base-300/80 rounded-b-xl overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 ease-out" style={"width: #{entry.progress}%"}></div>
+              </div>
+            </div>
           </div>
-          <!-- Bouton supprimer -->
-          <button
-            type="button"
-            phx-click="cancel-chat-upload"
-            phx-value-ref={entry.ref}
-            class="absolute -top-1.5 -right-1.5 btn btn-circle btn-xs bg-error border-none text-white hover:bg-error/80"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <!-- Barre de progression -->
-          <div :if={entry.progress > 0 && entry.progress < 100} class="absolute bottom-0 left-0 right-0 h-1 bg-base-300 rounded-b-lg overflow-hidden">
-            <div class="h-full bg-primary transition-all" style={"width: #{entry.progress}%"}></div>
+        </div>
+
+        <!-- Erreurs d'upload -->
+        <%= if @uploads && get_upload_errors(@uploads.chat_images) != [] do %>
+          <div class="mb-2 px-1">
+            <div class="flex items-center gap-2 text-error text-xs bg-error/10 rounded-lg px-3 py-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div>
+                <p :for={err <- get_upload_errors(@uploads.chat_images)}>
+                  {upload_error_to_string(err)}
+                </p>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- Input container -->
+        <div class="flex items-end gap-2">
+          <!-- Boutons gauche (photo + emoji) -->
+          <div class="flex items-center gap-0.5 pb-1.5">
+            <!-- Bouton photo/galerie -->
+            <label
+              class={"relative flex items-center justify-center w-9 h-9 rounded-full cursor-pointer transition-all duration-200 " <>
+                if @disabled, do: "opacity-40 cursor-not-allowed", else: "text-primary hover:bg-primary/10 active:scale-95"}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-[22px] w-[22px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              <.live_file_input :if={@uploads} upload={@uploads.chat_images} class="hidden" disabled={@disabled} />
+            </label>
+          </div>
+
+          <!-- Zone de texte principale -->
+          <div class="flex-1 min-w-0 relative">
+            <div class="relative bg-base-200/60 rounded-3xl transition-all duration-200 focus-within:bg-base-200 focus-within:ring-2 focus-within:ring-primary/20">
+              <textarea
+                name="message[body]"
+                rows="1"
+                class="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-[15px] leading-relaxed placeholder-base-content/40 py-2.5 pl-4 pr-4 min-h-[42px] max-h-32 scrollbar-hide"
+                placeholder="Message..."
+                phx-debounce="300"
+                phx-hook="ChatInput"
+                id="message-input"
+                disabled={@disabled}
+                autocomplete="off"
+                autocorrect="on"
+                spellcheck="true"
+              />
+            </div>
+          </div>
+
+          <!-- Bouton envoyer -->
+          <div class="pb-1">
+            <button
+              type="submit"
+              class={"flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 " <>
+                if @disabled, do: "bg-base-200 text-base-content/30 cursor-not-allowed", else: "bg-primary text-primary-content shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95"}
+              disabled={@disabled}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 translate-x-[1px]" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+              </svg>
+            </button>
           </div>
         </div>
-      </div>
-
-      <!-- Erreurs d'upload -->
-      <%= if @uploads && get_upload_errors(@uploads.chat_images) != [] do %>
-        <div class="mb-2">
-          <p :for={err <- get_upload_errors(@uploads.chat_images)} class="text-error text-xs">
-            {upload_error_to_string(err)}
-          </p>
-        </div>
-      <% end %>
-
-      <div class="flex items-end gap-2 bg-base-200/50 rounded-2xl p-2">
-        <!-- Bouton photo -->
-        <label
-          class={"btn btn-ghost btn-sm btn-circle text-base-content/50 hover:text-base-content cursor-pointer " <>
-            if @disabled, do: "btn-disabled", else: ""}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <.live_file_input :if={@uploads} upload={@uploads.chat_images} class="hidden" />
-        </label>
-
-        <!-- Zone de texte -->
-        <div class="flex-1 min-w-0">
-          <textarea
-            name="message[body]"
-            rows="1"
-            class="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-base placeholder-base-content/40 py-2 px-1 min-h-[40px] max-h-28"
-            placeholder="Écrivez un message..."
-            phx-debounce="300"
-            phx-hook="ChatInput"
-            id="message-input"
-            disabled={@disabled}
-          />
-        </div>
-
-        <!-- Bouton envoyer -->
-        <button
-          type="submit"
-          class="btn btn-primary btn-sm btn-circle shrink-0 transition-all duration-200"
-          disabled={@disabled}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-          </svg>
-        </button>
-      </div>
-    </.form>
+      </.form>
     </div>
     """
   end
@@ -1194,7 +1216,7 @@ defmodule MonAppWeb.ChatComponents do
           </svg>
         </a>
         <div class="relative shrink-0">
-          <.user_avatar name={@other_user.name} size="w-11 h-11" />
+          <.user_avatar name={@other_user.name} avatar={@other_user.avatar} size="w-11 h-11" />
           <span
             :if={@online}
             class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
@@ -1222,6 +1244,7 @@ defmodule MonAppWeb.ChatComponents do
 
   attr :conversation, :map, required: true
   attr :display_name, :string, required: true
+  attr :other_user, :map, default: nil
   attr :messages, :list, required: true
   attr :current_user, :map, required: true
   attr :online, :boolean, default: false
@@ -1237,11 +1260,13 @@ defmodule MonAppWeb.ChatComponents do
   def chat_bottom_sheet(assigns) do
     is_group = assigns.conversation.is_group
     participant_count = if is_group, do: length(assigns.conversation.participants || []), else: 0
+    avatar = if assigns.other_user, do: assigns.other_user.avatar, else: nil
 
     assigns =
       assigns
       |> assign(:is_group, is_group)
       |> assign(:participant_count, participant_count)
+      |> assign(:avatar, avatar)
 
     ~H"""
     <div class="fixed inset-0 z-50 md:flex md:justify-end">
@@ -1273,7 +1298,7 @@ defmodule MonAppWeb.ChatComponents do
               <%= if @is_group do %>
                 <.group_avatar name={@display_name} size="w-11 h-11" />
               <% else %>
-                <.user_avatar name={@display_name} size="w-11 h-11" />
+                <.user_avatar name={@display_name} avatar={@avatar} size="w-11 h-11" />
                 <span
                   :if={@online}
                   class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
@@ -1476,7 +1501,7 @@ defmodule MonAppWeb.ChatComponents do
                 class="w-full flex items-center gap-3 p-3 hover:bg-base-200 transition-colors"
               >
                 <div class="relative">
-                  <.user_avatar name={friend.name} size="w-10 h-10" />
+                  <.user_avatar name={friend.name} avatar={friend.avatar} size="w-10 h-10" />
                   <span
                     :if={friend.id in @online_users}
                     class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
@@ -1546,7 +1571,7 @@ defmodule MonAppWeb.ChatComponents do
                   :for={friend <- @selected_friends}
                   class="flex items-center gap-2 bg-base-100 border border-base-300 pl-1 pr-2 py-1 rounded-full text-sm shadow-sm"
                 >
-                  <.user_avatar name={friend.name} size="w-6 h-6" text_size="text-xs" />
+                  <.user_avatar name={friend.name} avatar={friend.avatar} size="w-6 h-6" text_size="text-xs" />
                   <span class="font-medium text-base-content/80">{friend.name}</span>
                   <button
                     type="button"
@@ -1602,7 +1627,7 @@ defmodule MonAppWeb.ChatComponents do
                     if friend in @selected_friends, do: "bg-primary/10", else: ""}
                 >
                   <div class="relative">
-                    <.user_avatar name={friend.name} size="w-10 h-10" />
+                    <.user_avatar name={friend.name} avatar={friend.avatar} size="w-10 h-10" />
                     <span
                       :if={friend.id in @online_users}
                       class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
@@ -1690,6 +1715,7 @@ defmodule MonAppWeb.ChatComponents do
   # ============== HELPERS ==============
 
   attr :name, :string, required: true
+  attr :avatar, :string, default: nil
   attr :size, :string, default: "w-10 h-10"
   attr :text_size, :string, default: "text-sm"
 
@@ -1720,9 +1746,15 @@ defmodule MonAppWeb.ChatComponents do
       |> assign(:color_class, color_class)
 
     ~H"""
-    <div class={"#{@size} rounded-full #{@color_class} flex items-center justify-center"}>
-      <span class={"font-bold #{@text_size}"}>{@initials}</span>
-    </div>
+    <%= if @avatar do %>
+      <div class={"#{@size} rounded-full overflow-hidden"}>
+        <img src={"/uploads/avatars/#{@avatar}"} alt={@name} class="w-full h-full object-cover" />
+      </div>
+    <% else %>
+      <div class={"#{@size} rounded-full #{@color_class} flex items-center justify-center"}>
+        <span class={"font-bold #{@text_size}"}>{@initials}</span>
+      </div>
+    <% end %>
     """
   end
 

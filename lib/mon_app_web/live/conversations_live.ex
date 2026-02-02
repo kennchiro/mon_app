@@ -159,6 +159,7 @@ defmodule MonAppWeb.ConversationsLive do
           :if={@active_conversation}
           conversation={@active_conversation}
           display_name={@active_display_name}
+          other_user={@active_other_user}
           messages={@active_messages}
           current_user={@current_user}
           online={@active_other_user && @active_other_user.id in @online_users}

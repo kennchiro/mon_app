@@ -96,9 +96,15 @@ defmodule MonAppWeb.Navbar do
         <!-- Avatar -->
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="cursor-pointer relative">
-            <div class="w-10 h-10 rounded-full bg-primary grid place-items-center">
-              <span class="text-primary-content text-lg font-bold leading-none">{String.first(@current_user.name)}</span>
-            </div>
+            <%= if @current_user.avatar do %>
+              <div class="w-10 h-10 rounded-full overflow-hidden">
+                <img src={"/uploads/avatars/#{@current_user.avatar}"} alt="Avatar" class="w-full h-full object-cover" />
+              </div>
+            <% else %>
+              <div class="w-10 h-10 rounded-full bg-primary grid place-items-center">
+                <span class="text-primary-content text-lg font-bold leading-none">{String.first(@current_user.name)}</span>
+              </div>
+            <% end %>
             <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-base-100 border-2 border-base-100 grid place-items-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-base-content" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />

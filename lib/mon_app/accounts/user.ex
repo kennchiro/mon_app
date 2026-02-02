@@ -9,6 +9,7 @@ defmodule MonApp.Accounts.User do
     field :email, :string
     field :age, :integer
     field :password_hash, :string
+    field :avatar, :string
 
     # Champ virtuel (pas en DB)
     field :password, :string, virtual: true
@@ -38,6 +39,12 @@ defmodule MonApp.Accounts.User do
     |> validate_length(:password, min: 6, max: 100)
     |> unique_constraint(:email)
     |> hash_password()
+  end
+
+  @doc "Changeset pour mettre à jour l'avatar"
+  def avatar_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:avatar])
   end
 
   # Hash le password avant insertion
