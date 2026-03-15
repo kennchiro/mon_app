@@ -35,13 +35,16 @@ defmodule MonAppWeb.PostsLive do
       Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
-    posts = Blog.list_posts_for_user(user_id)
+    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1)
     pending_count = length(Social.list_pending_requests(user_id))
     unread_messages_count = Chat.count_total_unread(user_id)
 
     {:ok,
      socket
      |> assign(:posts, posts)
+     |> assign(:page, 1)
+     |> assign(:has_more, has_more?)
+     |> assign(:loading_more, false)
      |> assign(:pending_requests_count, pending_count)
      |> assign(:unread_messages_count, unread_messages_count)
      |> assign(:form, to_form(Blog.change_post(%Post{})))
@@ -158,12 +161,46 @@ defmodule MonAppWeb.PostsLive do
           form={@share_form}
         />
         <.post_list posts={@posts} current_user={@current_user} />
+
+        <!-- Infinite Scroll Sentinel -->
+        <div
+          :if={@has_more}
+          id="infinite-scroll-sentinel"
+          phx-hook="InfiniteScroll"
+          class="flex justify-center py-8"
+        >
+          <span class="loading loading-spinner loading-md text-primary"></span>
+        </div>
+
+        <div :if={!@has_more && @posts != []} class="text-center py-8 text-base-content/40 text-sm">
+          Vous avez tout vu !
+        </div>
       </main>
     </div>
     """
   end
 
   # ============== EVENTS ==============
+
+  @impl true
+  def handle_event("load_more", _, socket) do
+    if socket.assigns.has_more && !socket.assigns.loading_more do
+      socket = assign(socket, :loading_more, true)
+      user_id = socket.assigns.current_user.id
+      next_page = socket.assigns.page + 1
+
+      {new_posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, next_page)
+
+      {:noreply,
+       socket
+       |> assign(:posts, socket.assigns.posts ++ new_posts)
+       |> assign(:page, next_page)
+       |> assign(:has_more, has_more?)
+       |> assign(:loading_more, false)}
+    else
+      {:noreply, socket}
+    end
+  end
 
   @impl true
   def handle_event("open_post_modal", _, socket) do
@@ -790,13 +827,14 @@ defmodule MonAppWeb.PostsLive do
     }
 
     case Blog.share_post(user.id, shared_post_id, attrs) do
-      {:ok, _new_post} ->
-        # Recharger les posts pour inclure le nouveau partage
-        posts = Blog.list_posts_for_user(user.id)
+      {:ok, new_post} ->
+        new_post = Repo.preload(new_post, [:user, :images, :reactions, :shares,
+          shared_post: [:user, :images],
+          comments: []])
 
         {:noreply,
          socket
-         |> assign(:posts, posts)
+         |> assign(:posts, [new_post | socket.assigns.posts])
          |> assign(:sharing_post, nil)
          |> assign(:share_form, to_form(%{"visibility" => "public"}))
          |> put_flash(:info, "Publication partagée !")}

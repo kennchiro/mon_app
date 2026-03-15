@@ -88,8 +88,10 @@ defmodule MonApp.Blog do
       |> order_by(desc: :inserted_at)
       |> limit(^(per_page + 1))
       |> offset(^offset)
-      |> preload(:user)
       |> Repo.all()
+      |> Repo.preload([:user, :images, :reactions, :shares,
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
 
     has_more? = length(posts) > per_page
     posts = Enum.take(posts, per_page)
