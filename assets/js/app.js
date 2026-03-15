@@ -378,6 +378,28 @@ const Hooks = {
         }
       })
     }
+  },
+
+  // Simple scroll-to-bottom + clear input for chat drawer
+  DrawerScrollBottom: {
+    mounted() {
+      this.scrollToBottom()
+
+      this.handleEvent("drawer_scroll_bottom", () => {
+        this.scrollToBottom()
+      })
+
+      this.handleEvent("drawer_clear_input", () => {
+        const input = document.getElementById("drawer-message-input")
+        if (input) input.value = ""
+      })
+    },
+    updated() {
+      this.scrollToBottom()
+    },
+    scrollToBottom() {
+      this.el.scrollTop = this.el.scrollHeight
+    }
   }
 }
 

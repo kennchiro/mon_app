@@ -766,10 +766,14 @@ defmodule MonAppWeb.PostComponents do
           <div class="p-4 border-b border-white/20">
             <!-- Post header -->
             <div class="flex items-start gap-3">
-              <.user_avatar name={@post.user.name} avatar={@post.user.avatar} />
+              <.profile_link user_id={@post.user_id}>
+                <.user_avatar name={@post.user.name} avatar={@post.user.avatar} />
+              </.profile_link>
               <div class="flex-1">
                 <div class="flex items-center gap-2">
-                  <span class="font-semibold">{@post.user.name}</span>
+                  <.profile_link user_id={@post.user_id}>
+                    <span class="font-semibold hover:underline cursor-pointer">{@post.user.name}</span>
+                  </.profile_link>
                   <.visibility_badge visibility={@post.visibility} />
                 </div>
                 <span class="text-sm text-base-content/50" title={Calendar.strftime(@post.inserted_at, "%d %b %Y à %H:%M")}>
@@ -1103,16 +1107,22 @@ defmodule MonAppWeb.PostComponents do
 
     ~H"""
     <div class="flex gap-3 items-start">
-      <.user_avatar name={@comment.user.name} avatar={@comment.user.avatar} size={if @is_reply, do: "w-6 h-6", else: "w-8 h-8"} />
+      <.profile_link user_id={@comment.user_id}>
+        <.user_avatar name={@comment.user.name} avatar={@comment.user.avatar} size={if @is_reply, do: "w-6 h-6", else: "w-8 h-8"} />
+      </.profile_link>
       <div class="flex-1 min-w-0">
         <!-- Bulle du commentaire -->
         <div class="inline-block max-w-[85%]">
           <div :if={@comment.body && @comment.body != ""} class="bg-base-200 rounded-2xl px-4 py-2">
-            <span class="font-semibold text-sm block">{@comment.user.name}</span>
+            <.profile_link user_id={@comment.user_id}>
+              <span class="font-semibold text-sm block hover:underline cursor-pointer">{@comment.user.name}</span>
+            </.profile_link>
             <p class="text-sm whitespace-pre-wrap break-words">{@comment.body}</p>
           </div>
           <!-- Nom si pas de texte mais image -->
-          <span :if={(!@comment.body || @comment.body == "") && @images != []} class="font-semibold text-sm block mb-1">{@comment.user.name}</span>
+          <.profile_link user_id={@comment.user_id}>
+            <span :if={(!@comment.body || @comment.body == "") && @images != []} class="font-semibold text-sm block mb-1 hover:underline cursor-pointer">{@comment.user.name}</span>
+          </.profile_link>
           <!-- Images du commentaire -->
           <div :if={@images != []} class="mt-1 flex flex-wrap gap-1">
             <img
@@ -1569,13 +1579,17 @@ defmodule MonAppWeb.PostComponents do
   defp post_header(assigns) do
     ~H"""
     <div class="flex items-center gap-2.5">
-      <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-9 h-9" />
+      <.profile_link user_id={@post.user_id}>
+        <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-9 h-9" />
+      </.profile_link>
 
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5 flex-wrap">
-          <span class="font-semibold text-[15px] text-base-content hover:underline cursor-pointer">
-            {@post.user.name}
-          </span>
+          <.profile_link user_id={@post.user_id}>
+            <span class="font-semibold text-[15px] text-base-content hover:underline cursor-pointer">
+              {@post.user.name}
+            </span>
+          </.profile_link>
           <span :if={@post.shared_post_id} class="text-[13px] text-base-content/60">
             a partagé une publication
           </span>
@@ -1839,6 +1853,19 @@ defmodule MonAppWeb.PostComponents do
         </li>
       </ul>
     </div>
+    """
+  end
+
+  # ============== PROFILE LINK ==============
+
+  attr :user_id, :integer, required: true
+  slot :inner_block, required: true
+
+  def profile_link(assigns) do
+    ~H"""
+    <a href={~p"/profile/#{@user_id}"} class="contents">
+      {render_slot(@inner_block)}
+    </a>
     """
   end
 

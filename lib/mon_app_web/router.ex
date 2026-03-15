@@ -66,6 +66,7 @@ defmodule MonAppWeb.Router do
       live "/users", UsersLive
       live "/conversations", ConversationsLive
       live "/chat/:id", ChatLive
+      live "/profile/:id", PublicProfileLive
       live "/profile", ProfileLive
     end
   end

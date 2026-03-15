@@ -97,6 +97,25 @@ defmodule MonApp.Blog do
     {posts, has_more?}
   end
 
+  @doc "Récupère les posts d'un user visibles par un viewer"
+  def list_user_posts_for_viewer(profile_user_id, viewer_user_id) do
+    is_friend = profile_user_id == viewer_user_id or
+      Social.friendship_status(viewer_user_id, profile_user_id) == :friends
+
+    Post
+    |> where([p], p.user_id == ^profile_user_id)
+    |> where([p],
+      p.visibility == "public" or
+      p.user_id == ^viewer_user_id or
+      (^is_friend and p.visibility == "friends")
+    )
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+    |> Repo.preload([:user, :images, :reactions, :shares,
+      shared_post: [:user, :images],
+      comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+  end
+
   @doc "Récupère tous les posts d'un user"
   def list_posts_by_user(user_id) do
     Post

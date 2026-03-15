@@ -4,6 +4,7 @@ defmodule MonAppWeb.ChatComponents do
   """
 
   use Phoenix.Component
+  use MonAppWeb, :verified_routes
 
   alias MonApp.Chat.Message
   alias MonApp.Chat.MessageAttachment
@@ -326,15 +327,15 @@ defmodule MonAppWeb.ChatComponents do
         </div>
 
         <!-- Avatar pour les messages de groupe (autres utilisateurs) -->
-        <div :if={@is_group && !@is_mine} class="shrink-0 self-end">
+        <a :if={@is_group && !@is_mine} href={~p"/profile/#{@message.sender_id}"} class="shrink-0 self-end">
           <.user_avatar name={@message.sender.name} avatar={@message.sender.avatar} size="w-7 h-7" text_size="text-[10px]" />
-        </div>
+        </a>
 
         <div class="max-w-[70%]">
           <!-- Nom de l'expéditeur pour les groupes -->
-          <p :if={@is_group && !@is_mine && !@is_deleted} class="text-xs text-base-content/60 mb-0.5 ml-1">
+          <a :if={@is_group && !@is_mine && !@is_deleted} href={~p"/profile/#{@message.sender_id}"} class="text-xs text-base-content/60 mb-0.5 ml-1 hover:underline block">
             {@message.sender.name}
-          </p>
+          </a>
 
         <!-- Reaction picker inline (au-dessus du message) -->
         <div :if={@show_reaction_picker && !@is_deleted} class={"mb-2 " <> if @is_mine, do: "text-right", else: "text-left"}>
@@ -1070,6 +1071,9 @@ defmodule MonAppWeb.ChatComponents do
   attr :uploads, :any, default: nil
   attr :disabled, :boolean, default: false
   attr :reply_message, :map, default: nil
+  attr :input_id, :string, default: "message-input"
+  attr :phx_target, :any, default: nil
+  attr :compact, :boolean, default: false
 
   def chat_input(assigns) do
     ~H"""
@@ -1081,7 +1085,8 @@ defmodule MonAppWeb.ChatComponents do
         for={@form}
         phx-submit="send_message"
         phx-change="validate_chat"
-        class="px-3 py-2 safe-area-bottom"
+        phx-target={@phx_target}
+        class={if @compact, do: "px-2 py-1.5", else: "px-3 py-2 safe-area-bottom"}
       >
         <!-- Preview des images à uploader -->
         <div :if={@uploads && @uploads.chat_images.entries != []} class="mb-3 px-1">
@@ -1150,11 +1155,16 @@ defmodule MonAppWeb.ChatComponents do
               <textarea
                 name="message[body]"
                 rows="1"
-                class="w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-[15px] leading-relaxed placeholder-base-content/40 py-2.5 pl-4 pr-4 min-h-[42px] max-h-32 scrollbar-hide"
+                class={
+                  "w-full bg-transparent border-none focus:ring-0 focus:outline-none resize-none leading-relaxed placeholder-base-content/40 scrollbar-hide " <>
+                  if @compact,
+                    do: "text-sm py-2 pl-3 pr-3 min-h-[36px] max-h-24",
+                    else: "text-[15px] py-2.5 pl-4 pr-4 min-h-[42px] max-h-32"
+                }
                 placeholder="Message..."
                 phx-debounce="300"
                 phx-hook="ChatInput"
-                id="message-input"
+                id={@input_id}
                 disabled={@disabled}
                 autocomplete="off"
                 autocorrect="on"
@@ -1164,14 +1174,15 @@ defmodule MonAppWeb.ChatComponents do
           </div>
 
           <!-- Bouton envoyer -->
-          <div class="pb-1">
+          <div class={if @compact, do: "pb-0.5", else: "pb-1"}>
             <button
               type="submit"
-              class={"flex items-center justify-center w-10 h-10 rounded-full transition-all duration-200 " <>
+              class={"flex items-center justify-center rounded-full transition-all duration-200 " <>
+                (if @compact, do: "w-8 h-8 ", else: "w-10 h-10 ") <>
                 if @disabled, do: "bg-base-200 text-base-content/30 cursor-not-allowed", else: "bg-primary text-primary-content shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 active:scale-95"}
               disabled={@disabled}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 translate-x-[1px]" viewBox="0 0 24 24" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class={if @compact, do: "h-4 w-4 translate-x-[1px]", else: "h-5 w-5 translate-x-[1px]"} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
               </svg>
             </button>
@@ -1215,15 +1226,15 @@ defmodule MonAppWeb.ChatComponents do
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </a>
-        <div class="relative shrink-0">
+        <a href={~p"/profile/#{@other_user.id}"} class="relative shrink-0">
           <.user_avatar name={@other_user.name} avatar={@other_user.avatar} size="w-11 h-11" />
           <span
             :if={@online}
             class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
           />
-        </div>
+        </a>
         <div class="flex-1 min-w-0 py-0.5">
-          <h2 class="font-semibold text-base truncate leading-tight">{@other_user.name}</h2>
+          <a href={~p"/profile/#{@other_user.id}"} class="font-semibold text-base truncate leading-tight hover:underline block">{@other_user.name}</a>
           <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
             <%= cond do %>
               <% @typing -> %>
@@ -1269,17 +1280,17 @@ defmodule MonAppWeb.ChatComponents do
       |> assign(:avatar, avatar)
 
     ~H"""
-    <div class="fixed inset-0 z-50 md:flex md:justify-end">
-      <!-- Overlay (hidden on mobile) -->
+    <div>
+      <!-- Overlay -->
       <div
-        class="hidden md:block absolute inset-0 bg-black/30"
+        class="fixed inset-0 bg-black/30 z-40"
         phx-click="close_chat"
       />
 
-      <!-- Chat Panel - Full screen on mobile, side panel on desktop -->
-      <div class="relative w-full md:max-w-md h-full flex flex-col bg-base-100 shadow-2xl md:animate-slide-in-right">
-        <!-- Header avec safe area -->
-        <div class="border-b border-base-200 bg-base-100 safe-area-top">
+      <!-- Chat Panel - Full screen mobile, flottant desktop aligné sous la navbar -->
+      <div class="fixed inset-0 z-50 md:inset-auto md:right-4 md:top-[4.5rem] md:bottom-6 md:w-96 flex flex-col bg-base-100 shadow-2xl md:rounded-2xl md:overflow-hidden md:animate-slide-in-right">
+        <!-- Header -->
+        <div class="border-b border-base-200 bg-base-100 safe-area-top md:safe-area-top-none md:rounded-t-2xl">
           <div class="flex items-center gap-3 px-4 py-3 min-h-[60px]">
             <button
               type="button"
@@ -1338,9 +1349,9 @@ defmodule MonAppWeb.ChatComponents do
           />
         </div>
 
-        <!-- Input avec safe area pour mobile -->
-        <div class="safe-area-bottom">
-          <.chat_input form={@form} uploads={@uploads} reply_message={@reply_message} />
+        <!-- Input -->
+        <div class="safe-area-bottom md:pb-1">
+          <.chat_input form={@form} uploads={@uploads} reply_message={@reply_message} compact={true} />
         </div>
       </div>
 

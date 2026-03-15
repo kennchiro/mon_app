@@ -84,10 +84,14 @@ defmodule MonAppWeb.UserComponents do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body flex-row items-center gap-4 py-4">
-        <PostComponents.user_avatar name={@user.name} avatar={@user.avatar} />
+        <PostComponents.profile_link user_id={@user.id}>
+          <PostComponents.user_avatar name={@user.name} avatar={@user.avatar} />
+        </PostComponents.profile_link>
 
         <div class="flex-1">
-          <h3 class="font-semibold">{@user.name}</h3>
+          <PostComponents.profile_link user_id={@user.id}>
+            <h3 class="font-semibold hover:underline cursor-pointer">{@user.name}</h3>
+          </PostComponents.profile_link>
           <p class="text-sm text-base-content/50">{@user.email}</p>
         </div>
 

@@ -187,6 +187,15 @@ defmodule MonApp.Social do
 
   # ============== HELPERS ==============
 
+  @doc "Récupère la relation d'amitié entre deux users"
+  def get_friendship(user_id, other_id) do
+    from(f in Friendship,
+      where: (f.user_id == ^user_id and f.friend_id == ^other_id) or
+             (f.user_id == ^other_id and f.friend_id == ^user_id)
+    )
+    |> Repo.one()
+  end
+
   @doc "Vérifie le statut d'amitié entre deux users"
   def friendship_status(user_id, other_id) do
     from(f in Friendship,
