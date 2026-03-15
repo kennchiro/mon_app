@@ -11,6 +11,7 @@ defmodule MonApp.Blog do
   alias MonApp.Blog.CommentImage
   alias MonApp.Blog.Reaction
   alias MonApp.Blog.CommentReaction
+  alias MonApp.Blog.DateApplication
   alias MonApp.Social
 
   @posts_per_page 20
@@ -45,7 +46,7 @@ defmodule MonApp.Blog do
     )
     |> order_by(desc: :inserted_at)
     |> Repo.all()
-    |> Repo.preload([:user, :images, :reactions, :shares,
+    |> Repo.preload([:user, :images, :reactions, :shares, date_applications: :user,
       shared_post: [:user, :images],
       comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
   end
@@ -74,22 +75,33 @@ defmodule MonApp.Blog do
   @doc """
   Récupère les posts visibles pour un user avec pagination.
   """
-  def list_posts_for_user_paginated(user_id, page \\ 1, per_page \\ @posts_per_page) do
+  def list_posts_for_user_paginated(user_id, page \\ 1, per_page \\ @posts_per_page, opts \\ []) do
     offset = (page - 1) * per_page
     friend_ids = Social.list_friends(user_id) |> Enum.map(& &1.id)
+    post_type_filter = Keyword.get(opts, :post_type, "all")
 
-    posts =
+    query =
       Post
       |> where([p],
         p.visibility == "public" or
         p.user_id == ^user_id or
         (p.visibility == "friends" and p.user_id in ^friend_ids)
       )
+
+    query =
+      case post_type_filter do
+        "date" -> where(query, [p], p.post_type == "date")
+        "standard" -> where(query, [p], p.post_type == "standard")
+        _ -> query
+      end
+
+    posts =
+      query
       |> order_by(desc: :inserted_at)
       |> limit(^(per_page + 1))
       |> offset(^offset)
       |> Repo.all()
-      |> Repo.preload([:user, :images, :reactions, :shares,
+      |> Repo.preload([:user, :images, :reactions, :shares, date_applications: :user,
         shared_post: [:user, :images],
         comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
 
@@ -113,7 +125,7 @@ defmodule MonApp.Blog do
     )
     |> order_by(desc: :inserted_at)
     |> Repo.all()
-    |> Repo.preload([:user, :images, :reactions, :shares,
+    |> Repo.preload([:user, :images, :reactions, :shares, date_applications: :user,
       shared_post: [:user, :images],
       comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
   end
@@ -189,7 +201,7 @@ defmodule MonApp.Blog do
     post = Repo.get(Post, id)
 
     if post do
-      Repo.preload(post, [:user, :images, :reactions, :shares,
+      Repo.preload(post, [:user, :images, :reactions, :shares, date_applications: :user,
         shared_post: [:user, :images],
         comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
     else
@@ -452,5 +464,331 @@ defmodule MonApp.Blog do
     Post
     |> where(user_id: ^user_id, shared_post_id: ^post_id)
     |> Repo.exists?()
+  end
+
+  # ============== DATE POSTS ==============
+
+  @doc "Crée un post de type date"
+  def create_date_post(attrs) do
+    %Post{}
+    |> Post.date_changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc "Change un date post (pour les formulaires)"
+  def change_date_post(%Post{} = post, attrs \\ %{}) do
+    Post.date_changeset(post, attrs)
+  end
+
+  @doc "Met à jour un date post"
+  def update_date_post(%Post{} = post, attrs) do
+    post
+    |> Post.date_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Met à jour le statut d'un date post"
+  def update_date_status(%Post{} = post, status) do
+    post
+    |> Post.date_changeset(%{date_status: status})
+    |> Repo.update()
+  end
+
+  @doc "Liste les posts date avec pagination"
+  def list_date_posts_for_user(user_id, page \\ 1, per_page \\ @posts_per_page) do
+    offset = (page - 1) * per_page
+    friend_ids = Social.list_friends(user_id) |> Enum.map(& &1.id)
+
+    posts =
+      Post
+      |> where([p], p.post_type == "date")
+      |> where([p],
+        p.visibility == "public" or
+        p.user_id == ^user_id or
+        (p.visibility == "friends" and p.user_id in ^friend_ids)
+      )
+      |> order_by(desc: :inserted_at)
+      |> limit(^(per_page + 1))
+      |> offset(^offset)
+      |> Repo.all()
+      |> Repo.preload([:user, :images, :reactions, :shares, :date_applications,
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+
+    has_more? = length(posts) > per_page
+    posts = Enum.take(posts, per_page)
+
+    {posts, has_more?}
+  end
+
+  @doc "Liste mes date posts (ceux que j'ai créés)"
+  def list_my_date_posts(user_id) do
+    Post
+    |> where([p], p.post_type == "date" and p.user_id == ^user_id)
+    |> order_by(desc: :inserted_at)
+    |> Repo.all()
+    |> Repo.preload([:user, :images, :reactions, :shares, [date_applications: :user],
+      shared_post: [:user, :images],
+      comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+  end
+
+  @doc "Liste les dates auxquels j'ai postulé"
+  def list_my_date_applications(user_id) do
+    applications =
+      DateApplication
+      |> where(user_id: ^user_id)
+      |> order_by(desc: :inserted_at)
+      |> preload(:user)
+      |> Repo.all()
+
+    post_ids = Enum.map(applications, & &1.post_id)
+
+    posts =
+      Post
+      |> where([p], p.id in ^post_ids)
+      |> Repo.all()
+      |> Repo.preload([:user, :images, :reactions, :shares, [date_applications: :user],
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+      |> Map.new(fn p -> {p.id, p} end)
+
+    Enum.map(applications, fn app ->
+      %{app | post: Map.get(posts, app.post_id)}
+    end)
+  end
+
+  # ============== DATE APPLICATIONS ==============
+
+  @doc "Postuler à un date"
+  def apply_to_date(user_id, post_id, message \\ nil) do
+    %DateApplication{}
+    |> DateApplication.changeset(%{user_id: user_id, post_id: post_id, message: message})
+    |> Repo.insert()
+  end
+
+  @doc "Accepter une candidature + auto-ami + auto-full + auto-chat"
+  def accept_date_application(application_id) do
+    case Repo.get(DateApplication, application_id) |> Repo.preload(:post) do
+      nil ->
+        {:error, :not_found}
+
+      application ->
+        result =
+          application
+          |> DateApplication.changeset(%{status: "accepted"})
+          |> Repo.update()
+
+        case result do
+          {:ok, updated_app} ->
+            post = application.post
+
+            # Auto-friend : créer amitié directement acceptée
+            ensure_friends(post.user_id, application.user_id)
+
+            # Vérifier si le date est complet
+            accepted_count = count_accepted_applications(post.id)
+            if accepted_count >= post.date_spots do
+              update_date_status(post, "full")
+            end
+
+            # Auto-chat : créer ou récupérer la conversation et envoyer un message
+            send_date_accepted_message(post, application.user_id)
+
+            # Notifier le candidat
+            Phoenix.PubSub.broadcast(
+              MonApp.PubSub,
+              "user:#{application.user_id}",
+              {:date_application_accepted, updated_app}
+            )
+
+            {:ok, updated_app}
+
+          error ->
+            error
+        end
+    end
+  end
+
+  defp ensure_friends(user_id, other_id) do
+    alias MonApp.Social.Friendship
+
+    existing = Social.get_friendship(user_id, other_id)
+
+    case existing do
+      nil ->
+        # Créer directement une amitié acceptée
+        %Friendship{}
+        |> Friendship.changeset(%{user_id: user_id, friend_id: other_id, status: "accepted"})
+        |> Repo.insert()
+
+      %{status: "pending"} ->
+        # Accepter la demande existante
+        existing
+        |> Friendship.changeset(%{status: "accepted"})
+        |> Repo.update()
+
+      %{status: "accepted"} ->
+        # Déjà amis
+        {:ok, existing}
+    end
+  end
+
+  defp send_date_accepted_message(post, applicant_id) do
+    alias MonApp.Chat
+
+    if post.date_spots > 1 do
+      # Group chat pour les dates multi-places
+      send_date_group_message(post, applicant_id)
+    else
+      # Chat 1-à-1 pour les dates single-place
+      send_date_direct_message(post, applicant_id)
+    end
+  end
+
+  defp send_date_direct_message(post, applicant_id) do
+    alias MonApp.Chat
+
+    case Chat.force_get_or_create_conversation(post.user_id, applicant_id) do
+      {:ok, conversation} ->
+        category = Post.date_category_emoji(post.date_category)
+        datetime = if post.date_datetime, do: Calendar.strftime(post.date_datetime, " le %d/%m à %Hh%M"), else: ""
+        location = if post.date_location && post.date_location != "", do: " à #{post.date_location}", else: ""
+
+        message = "#{category} Date accepté ! « #{post.date_title} »#{location}#{datetime}. On se retrouve bientôt ! 💘"
+
+        Chat.create_message(%{
+          conversation_id: conversation.id,
+          sender_id: post.user_id,
+          body: message
+        })
+
+        Phoenix.PubSub.broadcast(
+          MonApp.PubSub,
+          "conversation:#{conversation.id}",
+          {:new_message, %{conversation_id: conversation.id}}
+        )
+
+        Phoenix.PubSub.broadcast(
+          MonApp.PubSub,
+          "user:#{applicant_id}",
+          {:new_message, %{conversation_id: conversation.id}}
+        )
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  defp send_date_group_message(post, applicant_id) do
+    alias MonApp.Chat
+
+    group_name = "#{Post.date_category_emoji(post.date_category)} #{post.date_title}"
+
+    case Chat.get_or_create_date_group_conversation(post.user_id, group_name) do
+      {:ok, conversation} ->
+        # Ajouter le nouveau participant au groupe
+        Chat.add_date_participant(conversation.id, applicant_id)
+
+        # Charger le nom du candidat
+        applicant = MonApp.Accounts.get_user(applicant_id)
+        applicant_name = if applicant, do: applicant.name, else: "Quelqu'un"
+
+        category = Post.date_category_emoji(post.date_category)
+        datetime = if post.date_datetime, do: Calendar.strftime(post.date_datetime, " le %d/%m à %Hh%M"), else: ""
+        location = if post.date_location && post.date_location != "", do: " à #{post.date_location}", else: ""
+
+        message = "#{category} #{applicant_name} rejoint le date « #{post.date_title} »#{location}#{datetime} ! Bienvenue ! 💘"
+
+        Chat.create_message(%{
+          conversation_id: conversation.id,
+          sender_id: post.user_id,
+          body: message
+        })
+
+        # Notifier tous les participants du groupe
+        Phoenix.PubSub.broadcast(
+          MonApp.PubSub,
+          "conversation:#{conversation.id}",
+          {:new_message, %{conversation_id: conversation.id}}
+        )
+
+        Phoenix.PubSub.broadcast(
+          MonApp.PubSub,
+          "user:#{applicant_id}",
+          {:new_message, %{conversation_id: conversation.id}}
+        )
+
+      {:error, _} ->
+        :ok
+    end
+  end
+
+  @doc "Refuser une candidature"
+  def reject_date_application(application_id) do
+    case Repo.get(DateApplication, application_id) do
+      nil ->
+        {:error, :not_found}
+
+      application ->
+        application
+        |> DateApplication.changeset(%{status: "rejected"})
+        |> Repo.update()
+    end
+  end
+
+  @doc "Liste les candidatures d'un date post"
+  def list_date_applications(post_id) do
+    DateApplication
+    |> where(post_id: ^post_id)
+    |> order_by(asc: :inserted_at)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "Candidatures en attente d'un date post"
+  def list_pending_date_applications(post_id) do
+    DateApplication
+    |> where(post_id: ^post_id, status: "pending")
+    |> order_by(asc: :inserted_at)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "Candidatures acceptées d'un date post"
+  def list_accepted_date_applications(post_id) do
+    DateApplication
+    |> where(post_id: ^post_id, status: "accepted")
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "Compte les candidatures acceptées"
+  def count_accepted_applications(post_id) do
+    DateApplication
+    |> where(post_id: ^post_id, status: "accepted")
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Vérifie si un user a déjà postulé"
+  def has_applied?(user_id, post_id) do
+    DateApplication
+    |> where(user_id: ^user_id, post_id: ^post_id)
+    |> Repo.exists?()
+  end
+
+  @doc "Récupère la candidature d'un user sur un date"
+  def get_user_application(user_id, post_id) do
+    DateApplication
+    |> where(user_id: ^user_id, post_id: ^post_id)
+    |> Repo.one()
+  end
+
+  @doc "Annuler sa candidature"
+  def cancel_date_application(user_id, post_id) do
+    case get_user_application(user_id, post_id) do
+      nil -> {:error, :not_found}
+      %{status: "pending"} = app -> Repo.delete(app)
+      _ -> {:error, :cannot_cancel}
+    end
   end
 end

@@ -90,6 +90,56 @@ defmodule MonApp.Notifications do
     end
   end
 
+  def notify_date_application(post, applicant) do
+    if post.user_id != applicant.id do
+      message = "#{applicant.name} est intéressé(e) par ton date « #{post.date_title} »"
+
+      case create_notification(%{
+             type: "date_application",
+             message: message,
+             user_id: post.user_id,
+             actor_id: applicant.id,
+             post_id: post.id
+           }) do
+        {:ok, notification} ->
+          notification = Repo.preload(notification, [:actor, :post])
+          broadcast_notification(post.user_id, notification)
+          {:ok, notification}
+
+        error ->
+          error
+      end
+    else
+      {:ok, :self}
+    end
+  end
+
+  def notify_date_accepted(post, applicant_id) do
+    applicant = MonApp.Accounts.get_user(applicant_id)
+    owner = MonApp.Accounts.get_user(post.user_id)
+    if applicant && owner do
+      message = "#{owner.name} a accepté ta candidature pour « #{post.date_title} » 🎉"
+
+      case create_notification(%{
+             type: "date_accepted",
+             message: message,
+             user_id: applicant_id,
+             actor_id: post.user_id,
+             post_id: post.id
+           }) do
+        {:ok, notification} ->
+          notification = Repo.preload(notification, [:actor, :post])
+          broadcast_notification(applicant_id, notification)
+          {:ok, notification}
+
+        error ->
+          error
+      end
+    else
+      {:ok, :not_found}
+    end
+  end
+
   defp broadcast_notification(user_id, notification) do
     Phoenix.PubSub.broadcast(
       MonApp.PubSub,

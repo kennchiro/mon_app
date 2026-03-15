@@ -51,7 +51,7 @@ defmodule MonAppWeb.UsersLive do
     <div class="min-h-screen bg-base-200">
       <.navbar current_user={@current_user} current_path="/users" pending_requests_count={@pending_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
-      <main class="max-w-4xl mx-auto p-6">
+      <main class="max-w-2xl mx-auto p-4 sm:p-6">
         <h1 class="text-2xl font-bold mb-6">Amis</h1>
 
         <.user_tabs active_tab={@active_tab} pending_count={@pending_count} sent_count={@sent_count} />

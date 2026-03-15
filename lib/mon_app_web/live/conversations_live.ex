@@ -69,7 +69,7 @@ defmodule MonAppWeb.ConversationsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={["min-h-screen bg-base-100", @active_conversation && "chat-open"]}>
+    <div class={["min-h-screen bg-base-200", @active_conversation && "chat-open"]}>
       <!-- Navbar cachée sur mobile quand le chat est ouvert -->
       <div class={@active_conversation && "hidden md:block"}>
         <.navbar current_user={@current_user} current_path="/conversations" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
@@ -77,7 +77,7 @@ defmodule MonAppWeb.ConversationsLive do
 
       <main class="max-w-2xl mx-auto pb-safe">
         <!-- Header style Messenger - caché sur mobile quand le chat est ouvert -->
-        <div class={["bg-base-100 sticky top-0 z-10", @active_conversation && "hidden md:block"]}>
+        <div class={["bg-base-200 sticky top-0 z-10", @active_conversation && "hidden md:block"]}>
           <!-- Titre et recherche sur la même ligne -->
           <div class="flex items-center gap-3 px-4 pt-4 pb-3">
             <h1 class="text-2xl font-bold shrink-0">Chats</h1>
@@ -90,7 +90,7 @@ defmodule MonAppWeb.ConversationsLive do
               <input
                 type="text"
                 placeholder="Rechercher"
-                class="w-full h-9 pl-9 pr-3 text-sm bg-base-200 border-none rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20"
+                class="w-full h-9 pl-9 pr-3 text-sm bg-base-100 border border-base-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20"
                 phx-change="search"
                 phx-debounce="300"
                 name="query"
@@ -135,7 +135,7 @@ defmodule MonAppWeb.ConversationsLive do
         </div>
 
         <!-- Liste des conversations - cachée sur mobile quand le chat est ouvert -->
-        <div class={["bg-base-100 min-h-[50vh]", @active_conversation && "hidden md:block"]}>
+        <div class={["min-h-[50vh]", @active_conversation && "hidden md:block"]}>
           <.conversation_list
             conversations={@conversations}
             current_user={@current_user}

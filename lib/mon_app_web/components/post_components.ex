@@ -13,27 +13,37 @@ defmodule MonAppWeb.PostComponents do
 
   def post_form_trigger(assigns) do
     ~H"""
-    <div class="bg-base-100 rounded-lg shadow-sm mb-4" phx-click="open_post_modal">
-      <div class="p-3">
+    <div class="bg-base-100 rounded-xl shadow-sm mb-4 overflow-hidden">
+      <!-- Row 1: Post standard -->
+      <div class="p-3 cursor-pointer hover:bg-base-200/50 transition-colors" phx-click="open_post_modal">
         <div class="flex items-center gap-2.5">
           <.user_avatar name={@current_user.name} avatar={@current_user.avatar} size="w-9 h-9" />
-          <div class="flex-1 bg-base-200 hover:bg-base-300 rounded-full px-4 py-2 text-[15px] text-base-content/50 cursor-pointer transition-colors">
-            What's on your mind, {@current_user.name |> String.split() |> List.first()}?
+          <div class="flex-1 bg-base-200 hover:bg-base-300 rounded-full px-4 py-2 text-[15px] text-base-content/50 transition-colors">
+            Quoi de neuf, {@current_user.name |> String.split() |> List.first()} ?
           </div>
         </div>
       </div>
-      <div class="border-t border-base-200 px-1 py-0.5 flex">
-        <button type="button" class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
+      <!-- Separator -->
+      <div class="border-t border-base-200"></div>
+
+      <!-- Row 2: Two equal buttons -->
+      <div class="flex">
+        <!-- Post button -->
+        <button type="button" phx-click="open_post_modal" class="flex-1 py-2.5 flex items-center justify-center gap-2 text-[13px] font-semibold text-base-content/60 hover:bg-base-200 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
-          <span>Photo</span>
+          <span>Publication</span>
         </button>
-        <button type="button" class="flex-1 py-2 rounded-md flex items-center justify-center gap-1.5 text-[13px] font-semibold text-base-content/60 hover:bg-base-200">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>Feeling</span>
+
+        <!-- Divider vertical -->
+        <div class="w-px bg-base-200"></div>
+
+        <!-- Date button -->
+        <button type="button" phx-click="open_date_modal" class="flex-1 py-2.5 flex items-center justify-center gap-2 text-[13px] font-semibold text-base-content/60 hover:bg-transparent transition-all group">
+          <span class="text-lg group-hover:scale-110 transition-transform">💘</span>
+          <span class="bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent font-bold">Proposer un Date</span>
         </button>
       </div>
     </div>
@@ -1257,31 +1267,53 @@ defmodule MonAppWeb.PostComponents do
 
   attr :posts, :list, required: true
   attr :current_user, :map, required: true
+  attr :feed_filter, :string, default: "standard"
 
   def post_list(assigns) do
     ~H"""
     <div class="space-y-4 md:space-y-6">
-      <!-- Header avec titre -->
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg md:text-xl font-bold text-base-content">Fil d'actualité</h2>
-          <div class="flex items-center gap-1.5 px-2 py-0.5 bg-success/10 rounded-full">
-            <span class="w-2 h-2 bg-success rounded-full animate-pulse"></span>
-            <span class="text-success text-xs font-medium">Live</span>
+      <!-- Header avec titre + filtres -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <h2 class="text-lg md:text-xl font-bold text-base-content">Fil d'actualité</h2>
+            <div class="flex items-center gap-1.5 px-2 py-0.5 bg-success/10 rounded-full">
+              <span class="w-2 h-2 bg-success rounded-full animate-pulse"></span>
+              <span class="text-success text-xs font-medium">Live</span>
+            </div>
           </div>
+          <span class="text-base-content/40 text-xs md:text-sm font-medium">
+            {length(@posts)} publication{if length(@posts) > 1, do: "s", else: ""}
+          </span>
         </div>
-        <span class="text-base-content/40 text-xs md:text-sm font-medium">
-          {length(@posts)} publication{if length(@posts) > 1, do: "s", else: ""}
-        </span>
+        <!-- Feed filter tabs -->
+        <div class="flex gap-1 bg-base-200 rounded-lg p-1">
+          <button
+            phx-click="filter_feed"
+            phx-value-filter="standard"
+            class={"flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all #{if @feed_filter == "standard", do: "bg-base-100 shadow-sm text-base-content", else: "text-base-content/50 hover:text-base-content"}"}
+          >
+            Posts
+          </button>
+          <button
+            phx-click="filter_feed"
+            phx-value-filter="date"
+            class={"flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all #{if @feed_filter == "date", do: "bg-base-100 shadow-sm text-pink-500", else: "text-base-content/50 hover:text-base-content"}"}
+          >
+            💘 Dates
+          </button>
+        </div>
       </div>
 
       <.empty_state :if={@posts == []} />
 
-      <.post_item
-        :for={post <- @posts}
-        post={post}
-        current_user={@current_user}
-      />
+      <%= for post <- @posts do %>
+        <%= if post.post_type == "date" do %>
+          <.date_post_card post={post} current_user={@current_user} />
+        <% else %>
+          <.post_item post={post} current_user={@current_user} />
+        <% end %>
+      <% end %>
     </div>
     """
   end
@@ -1944,6 +1976,711 @@ defmodule MonAppWeb.PostComponents do
         class="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
         phx-click="close_image_preview"
       />
+    </div>
+    """
+  end
+
+  # ============== DATE POST FORM MODAL ==============
+
+  attr :form, :map, required: true
+  attr :current_user, :map, required: true
+  attr :uploads, :map, required: true
+  attr :editing_post, :map, default: nil
+
+  def date_form_modal(assigns) do
+    ~H"""
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div
+        class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        phx-click-away="close_date_modal"
+      >
+        <!-- Header gradient -->
+        <div class="bg-gradient-to-r from-pink-500 via-rose-500 to-red-400 rounded-t-2xl p-4 flex items-center justify-between">
+          <div></div>
+          <h3 class="text-xl font-bold text-white flex items-center gap-2">
+            <span>💘</span> {if @editing_post, do: "Modifier le Date", else: "Proposer un Date"}
+          </h3>
+          <button type="button" phx-click="close_date_modal" class="btn btn-ghost btn-sm btn-circle text-white hover:bg-white/20">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <.form for={@form} phx-submit={if @editing_post, do: "update_date", else: "save_date"} phx-change="validate_date" class="flex flex-col flex-1 overflow-hidden">
+          <input :if={@editing_post} type="hidden" name="date[id]" value={@editing_post.id} />
+          <div class="p-5 flex-1 overflow-y-auto space-y-5">
+            <!-- User info + Visibility -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <.user_avatar name={@current_user.name} avatar={@current_user.avatar} />
+                <div>
+                  <div class="font-semibold">{@current_user.name}</div>
+                  <div class="text-xs bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent font-medium">{if @editing_post, do: "Modifier le date ✏️", else: "Nouveau date 💘"}</div>
+                </div>
+              </div>
+              <select name="date[visibility]" class="px-3 py-1.5 bg-base-200/50 border border-base-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
+                <option value="public" selected={(@form[:visibility].value || "public") == "public"}>🌍 Public</option>
+                <option value="friends" selected={@form[:visibility].value == "friends"}>👥 Amis</option>
+              </select>
+            </div>
+
+            <!-- Date title -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Titre du date *</label>
+              <input
+                type="text"
+                name="date[date_title]"
+                value={@form[:date_title].value}
+                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                placeholder="Ex: Resto japonais ce soir !"
+                phx-debounce="300"
+              />
+            </div>
+
+            <!-- Category -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Catégorie *</label>
+              <div class="flex flex-wrap gap-1.5">
+                <label
+                  :for={cat <- MonApp.Blog.Post.date_categories()}
+                  class={"inline-flex items-center gap-1 px-3 py-1.5 rounded-full border cursor-pointer transition-all text-sm #{if @form[:date_category].value == cat, do: "border-pink-500 bg-pink-500/10 text-pink-600 font-semibold shadow-sm", else: "border-base-300/50 hover:border-pink-400/50 bg-base-200/30 text-base-content/70"}"}
+                >
+                  <input type="radio" name="date[date_category]" value={cat} checked={@form[:date_category].value == cat} class="hidden" />
+                  <span>{MonApp.Blog.Post.date_category_emoji(cat)}</span>
+                  <span>{MonApp.Blog.Post.date_category_label(cat)}</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Location -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Lieu (optionnel)</label>
+              <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <input
+                  type="text"
+                  name="date[date_location]"
+                  value={@form[:date_location].value}
+                  class="w-full pl-11 pr-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                  placeholder="Ex: Paris 11e, Le Petit Tokyo"
+                  phx-debounce="300"
+                />
+              </div>
+            </div>
+
+            <!-- Date & Time -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Quand ? *</label>
+              <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <input
+                  type="datetime-local"
+                  name="date[date_datetime]"
+                  value={format_datetime_local(@form[:date_datetime].value)}
+                  class="w-full pl-11 pr-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <!-- Budget & Spots -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Budget</label>
+                <select name="date[date_budget]" class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
+                  <option :for={b <- MonApp.Blog.Post.date_budgets()} value={b} selected={@form[:date_budget].value == b}>
+                    {MonApp.Blog.Post.date_budget_label(b)}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Places</label>
+                <input
+                  type="number"
+                  name="date[date_spots]"
+                  value={@form[:date_spots].value || 1}
+                  min="1"
+                  max="20"
+                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <!-- Gender preference -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Ouvert à</label>
+              <select name="date[date_gender_pref]" class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
+                <option :for={g <- MonApp.Blog.Post.date_gender_prefs()} value={g} selected={@form[:date_gender_pref].value == g}>
+                  {MonApp.Blog.Post.date_gender_pref_label(g)}
+                </option>
+              </select>
+            </div>
+
+            <!-- Age range -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Âge min</label>
+                <input
+                  type="number"
+                  name="date[date_age_min]"
+                  value={@form[:date_age_min].value}
+                  min="18"
+                  max="99"
+                  placeholder="18"
+                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                />
+              </div>
+              <div>
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Âge max</label>
+                <input
+                  type="number"
+                  name="date[date_age_max]"
+                  value={@form[:date_age_max].value}
+                  min="18"
+                  max="99"
+                  placeholder="99"
+                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Description (optionnel)</label>
+              <textarea
+                name="date[body]"
+                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all resize-none min-h-[80px]"
+                placeholder="Décris ton date idéal..."
+                phx-debounce="300"
+              >{@form[:body].value}</textarea>
+            </div>
+
+            <!-- Photo upload -->
+            <div>
+              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Photo (optionnel)</label>
+              <div class="flex items-center gap-3">
+                <!-- Image previews -->
+                <div :if={@uploads.date_images.entries != []} class="flex gap-2 flex-wrap">
+                  <div :for={entry <- @uploads.date_images.entries} class="relative group w-20 h-20">
+                    <.live_img_preview entry={entry} class="w-full h-full object-cover rounded-xl" />
+                    <button
+                      type="button"
+                      phx-click="cancel-date-upload"
+                      phx-value-ref={entry.ref}
+                      class="absolute -top-1.5 -right-1.5 btn btn-circle btn-xs bg-base-100 border border-base-300 shadow-sm hover:bg-error hover:text-white hover:border-error"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <!-- Upload button -->
+                <label
+                  :if={@uploads.date_images.entries == []}
+                  class="flex flex-col items-center justify-center w-full py-6 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-pink-400 hover:bg-pink-500/5 transition-all group"
+                  phx-drop-target={@uploads.date_images.ref}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-base-content/30 group-hover:text-pink-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span class="text-xs text-base-content/40 mt-1.5 group-hover:text-pink-400 transition-colors">Ajouter une photo</span>
+                  <.live_file_input upload={@uploads.date_images} class="hidden" />
+                </label>
+              </div>
+              <div :for={err <- upload_errors(@uploads.date_images)} class="text-error text-xs mt-1">
+                {upload_error_to_string(err)}
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Footer -->
+          <div class="p-4 border-t border-base-200">
+            <button type="submit" class="btn w-full gap-2 border-0 text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 rounded-xl shadow-lg shadow-pink-500/20">
+              <span>💘</span> {if @editing_post, do: "Enregistrer les modifications", else: "Publier le date"}
+            </button>
+          </div>
+        </.form>
+      </div>
+    </div>
+    """
+  end
+
+  # ============== DATE POST CARD ==============
+
+  attr :post, :map, required: true
+  attr :current_user, :map, required: true
+
+  def date_post_card(assigns) do
+    accepted_count = Enum.count(assigns.post.date_applications || [], fn a -> a.status == "accepted" end)
+    pending_count = Enum.count(assigns.post.date_applications || [], fn a -> a.status == "pending" end)
+    user_application = Enum.find(assigns.post.date_applications || [], fn a -> a.user_id == assigns.current_user.id end)
+    is_owner = assigns.post.user_id == assigns.current_user.id
+    is_full = assigns.post.date_status == "full" or accepted_count >= assigns.post.date_spots
+
+    assigns = assigns
+      |> assign(:accepted_count, accepted_count)
+      |> assign(:pending_count, pending_count)
+      |> assign(:user_application, user_application)
+      |> assign(:is_owner, is_owner)
+      |> assign(:is_full, is_full)
+
+    ~H"""
+    <article id={"post-#{@post.id}"} class="bg-base-100 rounded-xl shadow-lg overflow-hidden border border-base-200">
+      <!-- Header -->
+      <div class="p-5 flex items-center justify-between border-b border-base-200">
+        <div class="flex items-center gap-3.5">
+          <a href={~p"/profile/#{@post.user.id}"} class="relative">
+            <div class="w-12 h-12 rounded-full border-2 border-pink-500 p-0.5">
+              <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-full h-full" />
+            </div>
+          </a>
+          <div>
+            <a href={~p"/profile/#{@post.user.id}"} class="font-bold text-base hover:text-pink-500 transition-colors">{@post.user.name}</a>
+            <p class="text-base-content/50 text-sm">{time_ago(@post.inserted_at)} · {MonApp.Blog.Post.date_category_label(@post.date_category)}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class={"badge #{status_badge_class(@post.date_status)} badge-sm"}>
+            {MonApp.Blog.Post.date_status_label(@post.date_status)}
+          </div>
+          <div :if={@is_owner} class="dropdown dropdown-end">
+            <label tabindex="0" class="text-base-content/40 hover:text-pink-500 transition-colors cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
+              </svg>
+            </label>
+            <ul tabindex="0" class="dropdown-content menu p-1.5 shadow-lg bg-base-100 rounded-xl w-44 border border-base-200 z-50">
+              <li>
+                <button phx-click="edit_date" phx-value-id={@post.id} class="flex items-center gap-2 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Modifier
+                </button>
+              </li>
+              <li>
+                <button phx-click="delete_date" phx-value-id={@post.id} data-confirm="Supprimer ce date ?" class="flex items-center gap-2 text-sm text-error hover:!bg-error/10">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Supprimer
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-5">
+        <div class="flex flex-col gap-4">
+          <!-- Title & Places badge -->
+          <div class="flex justify-between items-start gap-3">
+            <div class="flex-1">
+              <h3 class="text-2xl font-extrabold tracking-tight">
+                {MonApp.Blog.Post.date_category_emoji(@post.date_category)} {@post.date_title}
+              </h3>
+              <p :if={@post.body} class="text-base-content/60 mt-1.5 leading-relaxed text-sm">{@post.body}</p>
+            </div>
+            <div class="flex flex-col items-center bg-base-200 px-3.5 py-2 rounded-xl border border-base-300 shrink-0">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-base-content/50">{if @post.date_spots > 1, do: "Places", else: "Place"}</span>
+              <span class="text-lg font-black text-blue-500">{@accepted_count}/{@post.date_spots}</span>
+            </div>
+          </div>
+
+          <!-- Info badges -->
+          <div class="flex flex-wrap gap-2">
+            <div class="flex items-center gap-1.5 bg-blue-500/10 text-blue-600 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              {@post.date_location}
+            </div>
+            <div class="flex items-center gap-1.5 bg-pink-500/10 text-pink-600 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {format_date_datetime(@post.date_datetime)}
+            </div>
+            <div class="flex items-center gap-1.5 bg-base-200 text-base-content/70 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+              Budget: {MonApp.Blog.Post.date_budget_label(@post.date_budget || "low")}
+            </div>
+            <div class="flex items-center gap-1.5 bg-base-200 text-base-content/70 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+              {MonApp.Blog.Post.date_gender_pref_label(@post.date_gender_pref || "any")}
+            </div>
+            <div :if={@post.date_age_min || @post.date_age_max} class="flex items-center gap-1.5 bg-base-200 text-base-content/70 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+              {if @post.date_age_min, do: "#{@post.date_age_min}", else: "18"}-{if @post.date_age_max, do: "#{@post.date_age_max}", else: "99"} ans
+            </div>
+          </div>
+
+          <!-- Date image -->
+          <div
+            :if={@post.images != [] && List.first(@post.images)}
+            class="w-full h-48 rounded-xl overflow-hidden relative"
+          >
+            <img
+              src={"/uploads/posts/#{List.first(@post.images).filename}"}
+              alt="Date photo"
+              class="w-full h-full object-cover"
+            />
+            <div class="absolute inset-0 bg-black/5"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action footer -->
+      <div class={"px-5 py-4 bg-base-200/50 border-t border-base-200 flex items-center #{if !@is_owner && @user_application && @user_application.status != "pending", do: "justify-center", else: "flex-col sm:flex-row gap-3 justify-between"}"}>
+        <!-- Left: interested people info or pending status -->
+        <div :if={!@is_owner && @user_application && @user_application.status == "pending"} class="flex items-center gap-2 text-base-content/50 text-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          En attente...
+        </div>
+        <div :if={!@user_application || @is_owner} class="flex items-center">
+          <!-- Owner: voir les avatars -->
+          <div :if={@is_owner && (@accepted_count > 0 || @pending_count > 0)} class="flex items-center">
+            <div class="flex -space-x-2.5">
+              <div
+                :for={app <- Enum.take(Enum.filter(@post.date_applications || [], fn a -> a.status == "accepted" end), 3)}
+                class="w-8 h-8 rounded-full border-2 border-base-100 overflow-hidden"
+              >
+                <.user_avatar name={app.user.name} avatar={app.user.avatar} size="w-full h-full" />
+              </div>
+              <div
+                :if={(@accepted_count + @pending_count) > 3}
+                class="w-8 h-8 rounded-full border-2 border-base-100 bg-pink-500 text-white flex items-center justify-center text-[10px] font-bold"
+              >
+                +{@accepted_count + @pending_count - 3}
+              </div>
+            </div>
+            <span class="pl-3 text-sm text-base-content/50 font-medium">
+              {cond do
+                @is_full && @accepted_count > 0 ->
+                  "#{@accepted_count}/#{@post.date_spots} acceptée#{if @accepted_count > 1, do: "s", else: ""} · Complet"
+                @accepted_count > 0 && @pending_count > 0 ->
+                  "#{@accepted_count}/#{@post.date_spots} acceptée#{if @accepted_count > 1, do: "s", else: ""} · #{@pending_count} en attente"
+                @accepted_count > 0 ->
+                  "#{@accepted_count}/#{@post.date_spots} acceptée#{if @accepted_count > 1, do: "s", else: ""}"
+                true ->
+                  "#{@pending_count} candidature#{if @pending_count > 1, do: "s", else: ""}"
+              end}
+            </span>
+          </div>
+          <!-- Non-owner: juste un compteur, pas d'avatars -->
+          <div :if={!@is_owner && (@accepted_count > 0 || @pending_count > 0)} class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-pink-500/10 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-pink-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <span class="text-sm text-base-content/50 font-medium">
+              {total = @accepted_count + @pending_count; "#{total} personne#{if total > 1, do: "s", else: ""} intéressée#{if total > 1, do: "s", else: ""}"}
+            </span>
+          </div>
+          <!-- Personne -->
+          <span :if={@accepted_count == 0 && @pending_count == 0} class="text-sm text-base-content/40">
+            {if @is_owner, do: "En attente de candidatures...", else: "Soyez le premier !"}
+          </span>
+        </div>
+
+        <!-- Right: action button -->
+        <div class="w-full sm:w-auto">
+          <!-- Owner: view applications -->
+          <button
+            :if={@is_owner && (@pending_count > 0 || @accepted_count > 0)}
+            phx-click="view_date_applications"
+            phx-value-id={@post.id}
+            class="w-full sm:w-auto bg-base-content text-base-100 px-6 py-2.5 rounded-xl font-bold hover:bg-pink-500 hover:text-white transition-all duration-300 shadow-md flex items-center justify-center gap-2 text-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            Voir les candidatures ({@pending_count + @accepted_count})
+          </button>
+
+          <div :if={@is_owner && @pending_count == 0 && @accepted_count == 0} class="text-center text-sm text-base-content/50 py-1">
+            En attente de candidatures...
+          </div>
+
+          <!-- Not owner -->
+          <!-- Pending -->
+          <button
+            :if={!@is_owner && @user_application && @user_application.status == "pending"}
+            phx-click="cancel_date_application"
+            phx-value-post-id={@post.id}
+            class="w-full sm:w-auto bg-base-content text-base-100 px-6 py-2.5 rounded-xl font-bold hover:bg-pink-500 hover:text-white transition-all duration-300 shadow-md flex items-center justify-center gap-2 text-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 1.41.5 2.7 1.33 3.73L12 21.35l8.67-9.12C21.5 11.2 22 9.91 22 8.5 22 5.42 19.58 3 16.5 3zM12 18.35l-6.93-7.29C4.39 10.32 4 9.44 4 8.5 4 6.57 5.57 5 7.5 5c1.54 0 3.04.99 3.57 2.36h1.87C13.46 5.99 14.96 5 16.5 5 18.43 5 20 6.57 20 8.5c0 .94-.39 1.82-1.07 2.56L12 18.35z" />
+            </svg>
+            Je ne suis plus intéressé(e)
+          </button>
+
+          <!-- Accepted -->
+          <div :if={!@is_owner && @user_application && @user_application.status == "accepted"} class="flex items-center justify-center gap-2 text-sm text-emerald-600 font-medium py-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Accepté
+          </div>
+
+          <!-- Rejected -->
+          <div :if={!@is_owner && @user_application && @user_application.status == "rejected"} class="text-center text-sm text-base-content/50 py-2">
+            Candidature déclinée
+          </div>
+
+          <!-- Can apply -->
+          <button
+            :if={!@is_owner && !@user_application && !@is_full && @post.date_status == "open"}
+            phx-click="open_apply_modal"
+            phx-value-id={@post.id}
+            class="w-full sm:w-auto bg-base-content text-base-100 px-6 py-2.5 rounded-xl font-bold hover:bg-pink-500 hover:text-white transition-all duration-300 shadow-md flex items-center justify-center gap-2 text-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+            Je suis intéressé(e) !
+          </button>
+
+          <!-- Full -->
+          <div :if={!@is_owner && !@user_application && @is_full} class="text-center text-sm text-base-content/50 py-2">
+            Complet
+          </div>
+        </div>
+      </div>
+    </article>
+    """
+  end
+
+  defp status_badge_class("open"), do: "badge-success"
+  defp status_badge_class("full"), do: "badge-warning"
+  defp status_badge_class("completed"), do: "badge-info"
+  defp status_badge_class("cancelled"), do: "badge-error"
+  defp status_badge_class(_), do: "badge-ghost"
+
+  defp format_date_datetime(nil), do: "À définir"
+  defp format_date_datetime(datetime) do
+    Calendar.strftime(datetime, "%d/%m à %Hh%M")
+  end
+
+  # Formate une valeur pour input datetime-local (YYYY-MM-DDTHH:MM)
+  defp format_datetime_local(nil), do: nil
+  defp format_datetime_local(""), do: nil
+  defp format_datetime_local(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M")
+  defp format_datetime_local(%NaiveDateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M")
+  defp format_datetime_local(value) when is_binary(value) do
+    # Si c'est déjà un string du form HTML, le garder tel quel (tronquer au format attendu)
+    value |> String.slice(0, 16)
+  end
+
+  # ============== DATE APPLICATION MODAL ==============
+
+  attr :post, :map, required: true
+  attr :current_user, :map, required: true
+
+  def date_apply_modal(assigns) do
+    ~H"""
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+      <div
+        class="bg-base-100 rounded-t-2xl sm:rounded-xl shadow-2xl w-full max-w-md"
+        phx-click-away="close_apply_modal"
+      >
+        <div class="p-4 border-b border-base-200">
+          <h3 class="text-lg font-bold flex items-center gap-2">
+            <span>💘</span> Postuler au date
+          </h3>
+          <p class="text-sm text-base-content/60 mt-1">{@post.date_title}</p>
+        </div>
+
+        <form phx-submit="submit_date_application" class="p-5 space-y-4">
+          <input type="hidden" name="post_id" value={@post.id} />
+          <div>
+            <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Un petit message ? (optionnel)</label>
+            <textarea
+              name="message"
+              class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all resize-none"
+              placeholder="Salut ! Je suis partant(e), j'adore la cuisine japonaise..."
+              maxlength="500"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" phx-click="close_apply_modal" class="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-base-content/60 hover:bg-base-200 transition-all">Annuler</button>
+            <button type="submit" class="flex-1 bg-base-content text-base-100 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-pink-500 hover:text-white transition-all duration-300 shadow-md flex items-center justify-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+              </svg>
+              Postuler
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    """
+  end
+
+  # ============== DATE APPLICATIONS LIST MODAL ==============
+
+  attr :post, :map, required: true
+  attr :applications, :list, required: true
+  attr :current_user, :map, required: true
+
+  def date_applications_modal(assigns) do
+    pending = Enum.filter(assigns.applications, fn a -> a.status == "pending" end)
+    accepted = Enum.filter(assigns.applications, fn a -> a.status == "accepted" end)
+    rejected = Enum.filter(assigns.applications, fn a -> a.status == "rejected" end)
+    is_full = length(accepted) >= assigns.post.date_spots
+
+    assigns = assigns
+      |> assign(:pending, pending)
+      |> assign(:accepted, accepted)
+      |> assign(:rejected, rejected)
+      |> assign(:is_full, is_full)
+
+    ~H"""
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
+      <div
+        class="bg-base-100 rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col border border-base-200"
+        phx-click-away="close_date_applications"
+      >
+        <!-- Header -->
+        <div class="p-4 border-b border-base-200 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold flex items-center gap-2">
+              <span>{MonApp.Blog.Post.date_category_emoji(@post.date_category)}</span> {@post.date_title}
+            </h3>
+            <p class="text-sm text-base-content/60 mt-1">
+              {length(@accepted)}/{@post.date_spots} place{if @post.date_spots > 1, do: "s", else: ""}
+              {if @is_full, do: " · Complet", else: if(length(@pending) > 0, do: " · #{length(@pending)} en attente", else: "")}
+            </p>
+          </div>
+          <button type="button" phx-click="close_date_applications" class="text-base-content/40 hover:text-base-content transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-5">
+          <!-- Accepted (toujours en premier) -->
+          <div :if={@accepted != []}>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-500 mb-3 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Acceptés ({length(@accepted)})
+            </h4>
+            <div class="space-y-2.5">
+              <div :for={app <- @accepted} class="flex items-center gap-3 p-3.5 bg-emerald-500/5 rounded-xl border border-emerald-200">
+                <a href={~p"/profile/#{app.user.id}"} class="shrink-0">
+                  <div class="w-11 h-11 rounded-full border-2 border-emerald-400 p-0.5">
+                    <.user_avatar name={app.user.name} avatar={app.user.avatar} size="w-full h-full" />
+                  </div>
+                </a>
+                <div class="flex-1 min-w-0">
+                  <a href={~p"/profile/#{app.user.id}"} class="font-bold text-sm hover:text-pink-500 transition-colors">{app.user.name}</a>
+                  <p :if={app.message} class="text-xs text-base-content/60 mt-0.5">{app.message}</p>
+                </div>
+                <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 text-xs font-bold rounded-full">Accepté</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending : avec actions si pas complet, simple liste si complet -->
+          <div :if={@pending != [] && !@is_full}>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              En attente ({length(@pending)})
+            </h4>
+            <div class="space-y-2.5">
+              <div :for={app <- @pending} class="flex items-center gap-3 p-3.5 bg-base-200/50 rounded-xl border border-base-200 hover:border-pink-300 transition-colors">
+                <a href={~p"/profile/#{app.user.id}"} class="shrink-0">
+                  <div class="w-11 h-11 rounded-full border-2 border-amber-400 p-0.5">
+                    <.user_avatar name={app.user.name} avatar={app.user.avatar} size="w-full h-full" />
+                  </div>
+                </a>
+                <div class="flex-1 min-w-0">
+                  <a href={~p"/profile/#{app.user.id}"} class="font-bold text-sm hover:text-pink-500 transition-colors">{app.user.name}</a>
+                  <p :if={app.message} class="text-xs text-base-content/60 mt-0.5 line-clamp-2">{app.message}</p>
+                  <p class="text-[11px] text-base-content/40 mt-0.5">{time_ago(app.inserted_at)}</p>
+                </div>
+                <div class="shrink-0">
+                  <button
+                    phx-click="accept_date_application"
+                    phx-value-id={app.id}
+                    class="px-3.5 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 transition-colors shadow-sm"
+                  >Accepter</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pending quand complet : simple liste sans actions ni statut "en attente" -->
+          <div :if={@pending != [] && @is_full}>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-base-content/40 mb-3 flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Autres candidats ({length(@pending)})
+            </h4>
+            <div class="space-y-2">
+              <div :for={app <- @pending} class="flex items-center gap-3 p-3 bg-base-200/30 rounded-xl">
+                <a href={~p"/profile/#{app.user.id}"} class="shrink-0">
+                  <div class="w-10 h-10 rounded-full border-2 border-base-300 p-0.5">
+                    <.user_avatar name={app.user.name} avatar={app.user.avatar} size="w-full h-full" />
+                  </div>
+                </a>
+                <div class="flex-1 min-w-0">
+                  <a href={~p"/profile/#{app.user.id}"} class="font-medium text-sm text-base-content/60 hover:text-pink-500 transition-colors">{app.user.name}</a>
+                  <p :if={app.message} class="text-xs text-base-content/40 mt-0.5 line-clamp-1">{app.message}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Declined -->
+          <div :if={@rejected != []}>
+            <h4 class="text-xs font-bold uppercase tracking-wider text-base-content/30 mb-3">Déclinés ({length(@rejected)})</h4>
+            <div class="space-y-2">
+              <div :for={app <- @rejected} class="flex items-center gap-3 p-3 bg-base-200/30 rounded-xl opacity-50">
+                <div class="w-10 h-10 rounded-full bg-base-300 flex items-center justify-center shrink-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+                <div class="flex-1">
+                  <span class="text-sm text-base-content/40">{app.user.name}</span>
+                </div>
+                <span class="text-xs text-base-content/30">Décliné</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div :if={@pending == [] && @accepted == [] && @rejected == []} class="text-center py-12">
+            <div class="w-16 h-16 mx-auto bg-pink-500/10 rounded-full flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </div>
+            <p class="text-base-content/40 text-sm">Pas encore de candidatures</p>
+            <p class="text-base-content/30 text-xs mt-1">Les personnes intéressées apparaîtront ici</p>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end

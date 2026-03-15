@@ -39,6 +39,22 @@ defmodule MonApp.Chat do
     end
   end
 
+  @doc """
+  Récupère ou crée une conversation sans vérifier l'amitié.
+  Utilisé par le système de date où l'amitié est gérée séparément.
+  """
+  def force_get_or_create_conversation(user1_id, user2_id) do
+    {min_id, max_id} = if user1_id < user2_id, do: {user1_id, user2_id}, else: {user2_id, user1_id}
+
+    case get_conversation_by_users(min_id, max_id) do
+      nil ->
+        create_conversation(%{user1_id: min_id, user2_id: max_id})
+
+      conversation ->
+        {:ok, conversation}
+    end
+  end
+
   @doc "Récupère une conversation par les IDs des deux users"
   def get_conversation_by_users(user1_id, user2_id) do
     # Normaliser l'ordre
@@ -111,6 +127,75 @@ defmodule MonApp.Chat do
         # Retourner la conversation avec les preloads
         Repo.preload(conversation, [:admin, participants: :user])
       end)
+    end
+  end
+
+  @doc """
+  Récupère ou crée une conversation de groupe pour un date post.
+  Ne vérifie PAS l'amitié entre participants (gérée par le système de date).
+  """
+  def get_or_create_date_group_conversation(admin_id, name) do
+    # Chercher une conversation de groupe existante avec ce nom et cet admin
+    existing =
+      Conversation
+      |> where([c], c.is_group == true and c.admin_id == ^admin_id and c.name == ^name)
+      |> preload([:admin, participants: :user])
+      |> Repo.one()
+
+    case existing do
+      nil ->
+        # Créer la conversation de groupe avec l'admin comme seul participant
+        Repo.transaction(fn ->
+          {:ok, conversation} =
+            %Conversation{}
+            |> Conversation.group_changeset(%{name: name, admin_id: admin_id})
+            |> Repo.insert()
+
+          %ConversationParticipant{}
+          |> ConversationParticipant.changeset(%{
+            conversation_id: conversation.id,
+            user_id: admin_id
+          })
+          |> Repo.insert!()
+
+          Repo.preload(conversation, [:admin, participants: :user])
+        end)
+
+      conversation ->
+        {:ok, conversation}
+    end
+  end
+
+  @doc "Ajoute un participant à un groupe de date (sans vérification d'amitié)"
+  def add_date_participant(conversation_id, user_id) do
+    conversation = get_conversation(conversation_id)
+
+    cond do
+      conversation == nil ->
+        {:error, :conversation_not_found}
+
+      not conversation.is_group ->
+        {:error, :not_a_group}
+
+      true ->
+        # Vérifier si déjà participant
+        existing =
+          ConversationParticipant
+          |> where(conversation_id: ^conversation_id, user_id: ^user_id)
+          |> Repo.one()
+
+        case existing do
+          nil ->
+            %ConversationParticipant{}
+            |> ConversationParticipant.changeset(%{
+              conversation_id: conversation_id,
+              user_id: user_id
+            })
+            |> Repo.insert()
+
+          participant ->
+            {:ok, participant}
+        end
     end
   end
 

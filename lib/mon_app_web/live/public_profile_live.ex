@@ -99,7 +99,7 @@ defmodule MonAppWeb.PublicProfileLive do
         unread_notifications_count={@unread_notifications_count}
       />
 
-      <main class={"max-w-4xl mx-auto p-6 #{if @viewing_post || @viewing_reactions_post || @viewing_comment_reactions || @preview_image || @sharing_post, do: "overflow-hidden h-screen", else: ""}"}>
+      <main class={"max-w-2xl mx-auto p-4 sm:p-6 #{if @viewing_post || @viewing_reactions_post || @viewing_comment_reactions || @preview_image || @sharing_post, do: "overflow-hidden h-screen", else: ""}"}>
         <!-- Post Modals -->
         <.post_detail_modal
           :if={@viewing_post}
@@ -186,9 +186,13 @@ defmodule MonAppWeb.PublicProfileLive do
             </div>
           <% else %>
             <div class="space-y-4">
-              <div :for={post <- @posts}>
-                <.post_item post={post} current_user={@current_user} />
-              </div>
+              <%= for post <- @posts do %>
+                <%= if post.post_type == "date" do %>
+                  <.date_post_card post={post} current_user={@current_user} />
+                <% else %>
+                  <.post_item post={post} current_user={@current_user} />
+                <% end %>
+              <% end %>
             </div>
           <% end %>
         </div>

@@ -11,6 +11,14 @@ defmodule MonApp.Accounts.User do
     field :password_hash, :string
     field :avatar, :string
 
+    # Dating fields
+    field :gender, :string
+    field :bio, :string
+    field :birthdate, :date
+    field :looking_for, :string, default: "any"
+    field :interests, {:array, :string}, default: []
+    field :location, :string
+
     # Champ virtuel (pas en DB)
     field :password, :string, virtual: true
 
@@ -19,6 +27,9 @@ defmodule MonApp.Accounts.User do
 
     timestamps()
   end
+
+  @genders ["male", "female", "non_binary", "other"]
+  @looking_for_options ["any", "male", "female", "non_binary", "friends"]
 
   @doc "Changeset pour modifier un user (sans password)"
   def changeset(user, attrs) do
@@ -29,6 +40,32 @@ defmodule MonApp.Accounts.User do
     |> validate_number(:age, greater_than: 0)
     |> unique_constraint(:email)
   end
+
+  @doc "Changeset pour le profil dating"
+  def dating_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:bio, :gender, :birthdate, :looking_for, :interests, :location])
+    |> validate_inclusion(:gender, @genders)
+    |> validate_inclusion(:looking_for, @looking_for_options)
+    |> validate_length(:bio, max: 500)
+    |> validate_length(:location, max: 100)
+  end
+
+  def genders, do: @genders
+  def looking_for_options, do: @looking_for_options
+
+  def gender_label("male"), do: "Homme"
+  def gender_label("female"), do: "Femme"
+  def gender_label("non_binary"), do: "Non-binaire"
+  def gender_label("other"), do: "Autre"
+  def gender_label(_), do: nil
+
+  def looking_for_label("any"), do: "Tout le monde"
+  def looking_for_label("male"), do: "Hommes"
+  def looking_for_label("female"), do: "Femmes"
+  def looking_for_label("non_binary"), do: "Non-binaires"
+  def looking_for_label("friends"), do: "Amis uniquement"
+  def looking_for_label(_), do: "Tout le monde"
 
   @doc "Changeset pour inscription (avec password)"
   def registration_changeset(user, attrs) do

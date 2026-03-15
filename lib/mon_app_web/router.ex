@@ -63,6 +63,7 @@ defmodule MonAppWeb.Router do
       pipe_through :browser
 
       live "/posts", PostsLive
+      live "/my-dates", MyDatesLive
       live "/users", UsersLive
       live "/conversations", ConversationsLive
       live "/chat/:id", ChatLive

@@ -35,3 +35,6 @@ mon_app-*.tar
 npm-debug.log
 /assets/node_modules/
 
+# MCP config (contains API keys)
+.mcp.json
+

@@ -59,6 +59,14 @@ defmodule MonAppWeb.Navbar do
             </svg>
           </a>
           <a
+            href={~p"/my-dates"}
+            class={"btn btn-ghost px-6 relative #{if @current_path == "/my-dates", do: "border-b-2 border-primary rounded-none", else: ""}"}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          </a>
+          <a
             href={~p"/users"}
             class={"btn btn-ghost px-6 relative #{if @current_path == "/users", do: "border-b-2 border-primary rounded-none", else: ""}"}
           >
@@ -116,7 +124,7 @@ defmodule MonAppWeb.Navbar do
               <div class="max-h-96 overflow-y-auto divide-y divide-base-200">
                 <%= for notification <- @notifications do %>
                   <a
-                    href={~p"/posts?post_id=#{notification.post_id}"}
+                    href={if notification.type in ["date_application", "date_accepted"], do: ~p"/my-dates", else: ~p"/posts?post_id=#{notification.post_id}"}
                     phx-click="mark_notification_read"
                     phx-value-id={notification.id}
                     class={"flex items-start gap-3 p-3 hover:bg-base-200 transition-colors #{unless notification.read, do: "bg-primary/5", else: ""}"}
@@ -132,14 +140,7 @@ defmodule MonAppWeb.Navbar do
                     <% end %>
                     <div class="flex-1 min-w-0">
                       <p class="text-sm">
-                        <span class="font-semibold">{notification.actor.name}</span>
-                        <span class="text-base-content/70">
-                          <%= if notification.type == "reply" do %>
-                            a répondu à ton commentaire
-                          <% else %>
-                            a commenté ton post
-                          <% end %>
-                        </span>
+                        <span class="text-base-content/70">{notification.message}</span>
                       </p>
                       <p class="text-xs text-base-content/50 mt-1">{time_ago(notification.inserted_at)}</p>
                     </div>

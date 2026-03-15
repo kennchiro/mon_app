@@ -35,7 +35,7 @@ defmodule MonAppWeb.PostsLive do
       Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
-    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1)
+    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1, 20, post_type: "standard")
     pending_count = length(Social.list_pending_requests(user_id))
     unread_messages_count = Chat.count_total_unread(user_id)
 
@@ -64,9 +64,21 @@ defmodule MonAppWeb.PostsLive do
      |> assign(:preview_image, nil)
      |> assign(:sharing_post, nil)
      |> assign(:share_form, to_form(%{"visibility" => "public"}))
+     |> assign(:feed_filter, "standard")
+     |> assign(:show_date_modal, false)
+     |> assign(:editing_date, nil)
+     |> assign(:date_form, to_form(Blog.change_date_post(%Post{})))
+     |> assign(:applying_to_date, nil)
+     |> assign(:viewing_date_applications, nil)
+     |> assign(:date_applications, [])
      |> allow_upload(:images,
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 20,
+       max_file_size: 10_000_000
+     )
+     |> allow_upload(:date_images,
+       accept: ~w(.jpg .jpeg .png .gif .webp),
+       max_entries: 4,
        max_file_size: 10_000_000
      )
      |> allow_upload(:comment_images,
@@ -106,20 +118,28 @@ defmodule MonAppWeb.PostsLive do
     # Vérifier si un modal est ouvert pour bloquer le scroll
     modal_open? = assigns.show_post_modal || assigns.editing_post || assigns.viewing_post ||
                   assigns.viewing_reactions_post || assigns.viewing_comment_reactions ||
-                  assigns.preview_image || assigns.sharing_post
+                  assigns.preview_image || assigns.sharing_post || assigns.show_date_modal ||
+                  assigns.applying_to_date || assigns.viewing_date_applications
     assigns = assign(assigns, :modal_open?, modal_open?)
 
     ~H"""
     <div class={"min-h-screen bg-base-200 #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
       <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
-      <main class="max-w-4xl mx-auto p-6">
+      <main class="max-w-2xl mx-auto p-4 sm:p-6">
         <.post_form_trigger current_user={@current_user} />
         <.post_form_modal
           :if={@show_post_modal}
           form={@form}
           uploads={@uploads}
           current_user={@current_user}
+        />
+        <.date_form_modal
+          :if={@show_date_modal}
+          form={@date_form}
+          uploads={@uploads}
+          current_user={@current_user}
+          editing_post={@editing_date}
         />
         <.edit_post_modal
           :if={@editing_post}
@@ -160,7 +180,18 @@ defmodule MonAppWeb.PostsLive do
           current_user={@current_user}
           form={@share_form}
         />
-        <.post_list posts={@posts} current_user={@current_user} />
+        <.date_apply_modal
+          :if={@applying_to_date}
+          post={@applying_to_date}
+          current_user={@current_user}
+        />
+        <.date_applications_modal
+          :if={@viewing_date_applications}
+          post={@viewing_date_applications}
+          applications={@date_applications}
+          current_user={@current_user}
+        />
+        <.post_list posts={@posts} current_user={@current_user} feed_filter={@feed_filter} />
 
         <!-- Infinite Scroll Sentinel -->
         <div
@@ -189,7 +220,8 @@ defmodule MonAppWeb.PostsLive do
       user_id = socket.assigns.current_user.id
       next_page = socket.assigns.page + 1
 
-      {new_posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, next_page)
+      filter = socket.assigns.feed_filter
+      {new_posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, next_page, 20, post_type: filter)
 
       {:noreply,
        socket
@@ -1054,9 +1086,12 @@ defmodule MonAppWeb.PostsLive do
   @impl true
   def handle_info({:post_created, post}, socket) do
     user_id = socket.assigns.current_user.id
+    filter = socket.assigns.feed_filter
 
-    # Vérifier si l'utilisateur peut voir ce post
-    if can_see_post?(post, user_id) do
+    # Vérifier si le post correspond au filtre actif
+    matches_filter = (post.post_type || "standard") == filter
+
+    if can_see_post?(post, user_id) && matches_filter do
       posts = [post | socket.assigns.posts]
       {:noreply, assign(socket, :posts, posts)}
     else
@@ -1320,5 +1355,357 @@ defmodule MonAppWeb.PostsLive do
 
       {:ok, filename}
     end)
+  end
+
+  defp save_date_images(socket, post_id) do
+    consume_uploaded_entries(socket, :date_images, fn %{path: path}, entry ->
+      ext = Path.extname(entry.client_name)
+      filename = "date_#{post_id}_#{System.unique_integer([:positive])}#{ext}"
+      dest = Path.join(Blog.uploads_dir(), filename)
+
+      File.cp!(path, dest)
+
+      Blog.create_post_image(%{
+        filename: filename,
+        original_filename: entry.client_name,
+        content_type: entry.client_type,
+        size: entry.client_size,
+        post_id: post_id
+      })
+
+      {:ok, filename}
+    end)
+  end
+
+  # Convertit "2026-03-20T19:00" → "2026-03-20T19:00:00Z" pour Ecto utc_datetime
+  defp normalize_date_datetime(%{"date_datetime" => dt} = params) when is_binary(dt) and dt != "" do
+    normalized =
+      case String.length(dt) do
+        16 -> dt <> ":00Z"  # "2026-03-20T19:00" → "2026-03-20T19:00:00Z"
+        19 -> dt <> "Z"     # "2026-03-20T19:00:00" → "2026-03-20T19:00:00Z"
+        _ -> dt
+      end
+    Map.put(params, "date_datetime", normalized)
+  end
+  defp normalize_date_datetime(params), do: params
+
+  # ============== DATE EVENTS ==============
+
+  @impl true
+  def handle_event("open_date_modal", _, socket) do
+    {:noreply, assign(socket, :show_date_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_date_modal", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:show_date_modal, false)
+     |> assign(:editing_date, nil)
+     |> assign(:date_form, to_form(Blog.change_date_post(%Post{})))}
+  end
+
+  @impl true
+  def handle_event("validate_date", %{"date" => date_params}, socket) do
+    date_params = normalize_date_datetime(date_params)
+
+    base_post = socket.assigns.editing_date || %Post{}
+    form =
+      base_post
+      |> Blog.change_date_post(date_params)
+      |> Map.put(:action, :validate)
+      |> to_form()
+
+    {:noreply, assign(socket, :date_form, form)}
+  end
+
+  @impl true
+  def handle_event("save_date", %{"date" => date_params}, socket) do
+    date_params = normalize_date_datetime(date_params)
+    user = socket.assigns.current_user
+    date_params = Map.put(date_params, "user_id", user.id)
+
+    case Blog.create_date_post(date_params) do
+      {:ok, post} ->
+        # Sauvegarder les images uploadées
+        save_date_images(socket, post.id)
+
+        post = Repo.preload(post, [:user, :images, :reactions, :shares, :comments, date_applications: :user])
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_created, post})
+
+        {:noreply,
+         socket
+         |> put_flash(:info, "Date publié ! 💘")
+         |> assign(:show_date_modal, false)
+         |> assign(:date_form, to_form(Blog.change_date_post(%Post{})))}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :date_form, to_form(changeset))}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel-date-upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :date_images, ref)}
+  end
+
+  # ============== EDIT / DELETE DATE ==============
+
+  @impl true
+  def handle_event("edit_date", %{"id" => id}, socket) do
+    user = socket.assigns.current_user
+    post = Blog.get_post(id) |> Repo.preload([:user, :images])
+
+    if post && post.user_id == user.id do
+      date_form = Blog.change_date_post(post) |> to_form()
+
+      {:noreply,
+       socket
+       |> assign(:editing_date, post)
+       |> assign(:show_date_modal, true)
+       |> assign(:date_form, date_form)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("update_date", %{"date" => date_params}, socket) do
+    post = socket.assigns.editing_date
+    user = socket.assigns.current_user
+
+    if post && post.user_id == user.id do
+      date_params = normalize_date_datetime(date_params)
+
+      case Blog.update_date_post(post, date_params) do
+        {:ok, updated_post} ->
+          save_date_images(socket, updated_post.id)
+          updated_post = Blog.get_post_with_comments(updated_post.id)
+
+          posts = Enum.map(socket.assigns.posts, fn p ->
+            if p.id == updated_post.id, do: updated_post, else: p
+          end)
+
+          Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_updated, updated_post})
+
+          {:noreply,
+           socket
+           |> assign(:posts, posts)
+           |> assign(:show_date_modal, false)
+           |> assign(:editing_date, nil)
+           |> assign(:date_form, to_form(Blog.change_date_post(%Post{})))
+           |> put_flash(:info, "Date modifié ! ✏️")}
+
+        {:error, changeset} ->
+          {:noreply, assign(socket, :date_form, to_form(changeset))}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("delete_date", %{"id" => id}, socket) do
+    post = Blog.get_post(id)
+    user = socket.assigns.current_user
+
+    if post && post.user_id == user.id do
+      case Blog.delete_post(post) do
+        {:ok, _} ->
+          Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_deleted, post})
+          {:noreply, put_flash(socket, :info, "Date supprimé")}
+
+        {:error, _} ->
+          {:noreply, put_flash(socket, :error, "Erreur lors de la suppression")}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("filter_feed", %{"filter" => filter}, socket) do
+    user_id = socket.assigns.current_user.id
+    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1, 20, post_type: filter)
+
+    {:noreply,
+     socket
+     |> assign(:feed_filter, filter)
+     |> assign(:posts, posts)
+     |> assign(:page, 1)
+     |> assign(:has_more, has_more?)}
+  end
+
+  @impl true
+  def handle_event("open_apply_modal", %{"id" => id}, socket) do
+    post = Enum.find(socket.assigns.posts, &(to_string(&1.id) == id))
+    {:noreply, assign(socket, :applying_to_date, post)}
+  end
+
+  @impl true
+  def handle_event("close_apply_modal", _, socket) do
+    {:noreply, assign(socket, :applying_to_date, nil)}
+  end
+
+  @impl true
+  def handle_event("submit_date_application", %{"post_id" => post_id} = params, socket) do
+    user_id = socket.assigns.current_user.id
+    message = Map.get(params, "message", "")
+    message = if message == "", do: nil, else: message
+
+    case Blog.apply_to_date(user_id, String.to_integer(post_id), message) do
+      {:ok, _application} ->
+        updated_post = Blog.get_post_with_comments(String.to_integer(post_id))
+        posts = Enum.map(socket.assigns.posts, fn p ->
+          if p.id == updated_post.id, do: updated_post, else: p
+        end)
+
+        # Broadcast temps réel pour tous les utilisateurs
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_updated, updated_post})
+
+        # Notifier le propriétaire du date (temps réel + notification persistante)
+        Phoenix.PubSub.broadcast(
+          MonApp.PubSub,
+          "user:#{updated_post.user_id}",
+          {:date_application_received, updated_post}
+        )
+
+        MonApp.Notifications.notify_date_application(updated_post, socket.assigns.current_user)
+
+        {:noreply,
+         socket
+         |> assign(:applying_to_date, nil)
+         |> assign(:posts, posts)
+         |> put_flash(:info, "Candidature envoyée ! 💘")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Impossible de postuler")}
+    end
+  end
+
+  @impl true
+  def handle_event("cancel_date_application", %{"post-id" => post_id}, socket) do
+    user_id = socket.assigns.current_user.id
+    post_id = String.to_integer(post_id)
+
+    case Blog.cancel_date_application(user_id, post_id) do
+      {:ok, _} ->
+        updated_post = Blog.get_post_with_comments(post_id)
+        posts = Enum.map(socket.assigns.posts, fn p ->
+          if p.id == post_id, do: updated_post, else: p
+        end)
+
+        # Broadcast temps réel
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_updated, updated_post})
+
+        {:noreply,
+         socket
+         |> assign(:posts, posts)
+         |> put_flash(:info, "Candidature annulée")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Impossible d'annuler")}
+    end
+  end
+
+  @impl true
+  def handle_event("view_date_applications", %{"id" => id}, socket) do
+    post_id = String.to_integer(id)
+    post = Enum.find(socket.assigns.posts, &(&1.id == post_id))
+    applications = Blog.list_date_applications(post_id)
+
+    {:noreply,
+     socket
+     |> assign(:viewing_date_applications, post)
+     |> assign(:date_applications, applications)}
+  end
+
+  @impl true
+  def handle_event("close_date_applications", _, socket) do
+    {:noreply,
+     socket
+     |> assign(:viewing_date_applications, nil)
+     |> assign(:date_applications, [])}
+  end
+
+  @impl true
+  def handle_event("accept_date_application", %{"id" => id}, socket) do
+    case Blog.accept_date_application(String.to_integer(id)) do
+      {:ok, accepted_app} ->
+        post = socket.assigns.viewing_date_applications
+        updated_post = Blog.get_post_with_comments(post.id)
+        applications = Blog.list_date_applications(post.id)
+        posts = Enum.map(socket.assigns.posts, fn p ->
+          if p.id == post.id, do: updated_post, else: p
+        end)
+
+        # Broadcast temps réel
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_updated, updated_post})
+
+        # Notification persistante pour le candidat accepté
+        MonApp.Notifications.notify_date_accepted(updated_post, accepted_app.user_id)
+
+        {:noreply,
+         socket
+         |> assign(:posts, posts)
+         |> assign(:viewing_date_applications, updated_post)
+         |> assign(:date_applications, applications)
+         |> put_flash(:info, "Candidature acceptée ! Vous êtes maintenant amis 🎉")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Erreur lors de l'acceptation")}
+    end
+  end
+
+  @impl true
+  def handle_event("reject_date_application", %{"id" => id}, socket) do
+    case Blog.reject_date_application(String.to_integer(id)) do
+      {:ok, _} ->
+        post = socket.assigns.viewing_date_applications
+        updated_post = Blog.get_post_with_comments(post.id)
+        applications = Blog.list_date_applications(post.id)
+        posts = Enum.map(socket.assigns.posts, fn p ->
+          if p.id == post.id, do: updated_post, else: p
+        end)
+
+        # Broadcast temps réel
+        Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:post_updated, updated_post})
+
+        {:noreply,
+         socket
+         |> assign(:posts, posts)
+         |> assign(:viewing_date_applications, updated_post)
+         |> assign(:date_applications, applications)}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Erreur lors du déclin")}
+    end
+  end
+
+  # ============== DATE REALTIME HANDLERS ==============
+
+  @impl true
+  def handle_info({:date_application_received, updated_post}, socket) do
+    # Mettre à jour le post dans le feed + rafraîchir le modal si ouvert
+    posts = Enum.map(socket.assigns.posts, fn p ->
+      if p.id == updated_post.id, do: updated_post, else: p
+    end)
+
+    socket = assign(socket, :posts, posts)
+
+    # Si le modal des candidatures est ouvert pour ce post, rafraîchir
+    socket =
+      if socket.assigns.viewing_date_applications &&
+         socket.assigns.viewing_date_applications.id == updated_post.id do
+        applications = Blog.list_date_applications(updated_post.id)
+
+        socket
+        |> assign(:viewing_date_applications, updated_post)
+        |> assign(:date_applications, applications)
+      else
+        socket
+      end
+
+    {:noreply, socket}
   end
 end

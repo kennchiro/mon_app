@@ -27,7 +27,7 @@ defmodule MonAppWeb.ChatComponents do
     assigns = assign(assigns, :filtered_conversations, filtered_conversations)
 
     ~H"""
-    <div>
+    <div class="space-y-2 px-4 py-2">
       <.conversation_item
         :for={conv <- @filtered_conversations}
         conversation={conv}
@@ -87,7 +87,7 @@ defmodule MonAppWeb.ChatComponents do
       type="button"
       phx-click="open_chat"
       phx-value-id={@conversation.id}
-      class="w-full flex items-center gap-3 px-4 py-3 hover:bg-base-200/70 active:bg-base-200 transition-colors cursor-pointer text-left rounded-xl mx-2 my-0.5"
+      class="w-full flex items-center gap-3 px-4 py-3 bg-base-100 hover:bg-base-100/80 active:bg-base-200 transition-colors cursor-pointer text-left rounded-xl shadow-sm border border-base-200"
     >
       <!-- Avatar avec indicateur online ou icône groupe -->
       <div class="relative shrink-0">
