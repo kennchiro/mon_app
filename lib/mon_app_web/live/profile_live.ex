@@ -4,6 +4,7 @@ defmodule MonAppWeb.ProfileLive do
   alias MonApp.Social
   alias MonApp.Chat
   alias MonApp.Accounts
+  alias MonApp.Notifications
   alias MonAppWeb.Presence
 
   import MonAppWeb.Navbar
@@ -59,7 +60,7 @@ defmodule MonAppWeb.ProfileLive do
 
     ~H"""
     <div class="min-h-screen bg-base-200">
-      <.navbar current_user={@current_user} current_path="/profile" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} />
+      <.navbar current_user={@current_user} current_path="/profile" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
       <main class="max-w-4xl mx-auto p-6">
         <div class="card bg-base-100 shadow-sm">
@@ -287,6 +288,40 @@ defmodule MonAppWeb.ProfileLive do
     end
   end
 
+  # ============== NOTIFICATION EVENTS ==============
+
+  @impl true
+  def handle_event("mark_notification_read", %{"id" => id}, socket) do
+    user_id = socket.assigns.current_user.id
+    notification_id = String.to_integer(id)
+    Notifications.mark_as_read(notification_id, user_id)
+
+    notifications =
+      Enum.map(socket.assigns.notifications, fn n ->
+        if n.id == notification_id, do: %{n | read: true}, else: n
+      end)
+
+    unread_count = Enum.count(notifications, fn n -> !n.read end)
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, unread_count)}
+  end
+
+  @impl true
+  def handle_event("mark_all_notifications_read", _, socket) do
+    user_id = socket.assigns.current_user.id
+    Notifications.mark_all_as_read(user_id)
+
+    notifications = Enum.map(socket.assigns.notifications, fn n -> %{n | read: true} end)
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, 0)}
+  end
+
   # ============== PUBSUB HANDLERS ==============
 
   @impl true
@@ -295,6 +330,17 @@ defmodule MonAppWeb.ProfileLive do
     user_id = socket.assigns.current_user.id
     unread_count = Chat.count_total_unread(user_id)
     {:noreply, assign(socket, :unread_messages_count, unread_count)}
+  end
+
+  @impl true
+  def handle_info({:new_notification, notification}, socket) do
+    notifications = [notification | socket.assigns.notifications]
+    unread_count = socket.assigns.unread_notifications_count + 1
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, unread_count)}
   end
 
   @impl true

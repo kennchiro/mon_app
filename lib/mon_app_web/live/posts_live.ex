@@ -5,6 +5,7 @@ defmodule MonAppWeb.PostsLive do
   alias MonApp.Blog.Post
   alias MonApp.Blog.Comment
   alias MonApp.Chat
+  alias MonApp.Notifications
   alias MonApp.Repo
   alias MonApp.Social
   alias MonAppWeb.Presence
@@ -72,6 +73,29 @@ defmodule MonAppWeb.PostsLive do
      )}
   end
 
+  @impl true
+  def handle_params(%{"post_id" => post_id}, _uri, socket) do
+    case Blog.get_post_with_comments(post_id) do
+      nil ->
+        {:noreply, put_flash(socket, :error, "Post non trouvé")}
+
+      post ->
+        comment_form = Blog.change_comment(%Comment{}) |> to_form()
+
+        {:noreply,
+         socket
+         |> assign(:viewing_post, post)
+         |> assign(:comment_form, comment_form)
+         |> assign(:comment_form_id, System.unique_integer())
+         |> assign(:replying_to, nil)}
+    end
+  end
+
+  @impl true
+  def handle_params(_params, _uri, socket) do
+    {:noreply, socket}
+  end
+
   # ============== RENDER ==============
 
   @impl true
@@ -84,7 +108,7 @@ defmodule MonAppWeb.PostsLive do
 
     ~H"""
     <div class={"min-h-screen bg-base-200 #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
-      <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} />
+      <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
       <main class="max-w-4xl mx-auto p-6">
         <.post_form_trigger current_user={@current_user} />
@@ -823,6 +847,9 @@ defmodule MonAppWeb.PostsLive do
           # Broadcast pour les autres utilisateurs
           Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:comment_added, post.id, comment})
 
+          # Notifier le propriétaire du post
+          Notifications.notify_comment(post, comment, user)
+
           {:noreply,
            socket
            |> assign(:viewing_post, updated_post)
@@ -889,6 +916,11 @@ defmodule MonAppWeb.PostsLive do
           # Broadcast pour les autres utilisateurs
           Phoenix.PubSub.broadcast(MonApp.PubSub, @topic, {:reply_added, post.id, parent_comment.id, reply})
 
+          # Notifier le propriétaire du post
+          Notifications.notify_comment(post, reply, user)
+          # Notifier l'auteur du commentaire parent
+          Notifications.notify_reply(post, reply, parent_comment, user)
+
           {:noreply,
            socket
            |> assign(:viewing_post, updated_post)
@@ -943,6 +975,40 @@ defmodule MonAppWeb.PostsLive do
     else
       {:noreply, put_flash(socket, :error, "Non autorisé")}
     end
+  end
+
+  # ============== NOTIFICATION EVENTS ==============
+
+  @impl true
+  def handle_event("mark_notification_read", %{"id" => id}, socket) do
+    user_id = socket.assigns.current_user.id
+    notification_id = String.to_integer(id)
+    Notifications.mark_as_read(notification_id, user_id)
+
+    notifications =
+      Enum.map(socket.assigns.notifications, fn n ->
+        if n.id == notification_id, do: %{n | read: true}, else: n
+      end)
+
+    unread_count = Enum.count(notifications, fn n -> !n.read end)
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, unread_count)}
+  end
+
+  @impl true
+  def handle_event("mark_all_notifications_read", _, socket) do
+    user_id = socket.assigns.current_user.id
+    Notifications.mark_all_as_read(user_id)
+
+    notifications = Enum.map(socket.assigns.notifications, fn n -> %{n | read: true} end)
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, 0)}
   end
 
   # ============== PUBSUB HANDLERS ==============
@@ -1136,6 +1202,17 @@ defmodule MonAppWeb.PostsLive do
   def handle_info({:friend_request_accepted, _}, socket) do
     # Notre demande a été acceptée - rafraîchir la liste d'amis si nécessaire
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_info({:new_notification, notification}, socket) do
+    notifications = [notification | socket.assigns.notifications]
+    unread_count = socket.assigns.unread_notifications_count + 1
+
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, unread_count)}
   end
 
   @impl true

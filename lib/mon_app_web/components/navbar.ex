@@ -2,6 +2,19 @@ defmodule MonAppWeb.Navbar do
   use Phoenix.Component
   use MonAppWeb, :verified_routes
 
+  defp time_ago(datetime) do
+    now = NaiveDateTime.utc_now()
+    diff = NaiveDateTime.diff(now, datetime, :second)
+
+    cond do
+      diff < 60 -> "à l'instant"
+      diff < 3600 -> "il y a #{div(diff, 60)} min"
+      diff < 86400 -> "il y a #{div(diff, 3600)} h"
+      diff < 604_800 -> "il y a #{div(diff, 86400)} j"
+      true -> Calendar.strftime(datetime, "%d/%m/%Y")
+    end
+  end
+
   def logout_link(assigns) do
     ~H"""
     <form action={~p"/auth/logout"} method="post" class="contents">
@@ -21,6 +34,8 @@ defmodule MonAppWeb.Navbar do
   attr :current_path, :string, default: "/"
   attr :pending_requests_count, :integer, default: 0
   attr :unread_messages_count, :integer, default: 0
+  attr :notifications, :list, default: []
+  attr :unread_notifications_count, :integer, default: 0
 
   def navbar(assigns) do
     ~H"""
@@ -72,24 +87,67 @@ defmodule MonAppWeb.Navbar do
       <div class="flex-1 flex justify-end items-center gap-2">
         <!-- Notifications -->
         <div class="dropdown dropdown-end">
-          <div tabindex="0" role="button" class="cursor-pointer">
+          <div tabindex="0" role="button" class="cursor-pointer relative">
             <div class="w-10 h-10 rounded-full bg-base-300 grid place-items-center">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
               </svg>
             </div>
+            <span :if={@unread_notifications_count > 0} class="absolute -top-1 -right-1 badge badge-primary badge-sm text-primary-content">
+              {@unread_notifications_count}
+            </span>
           </div>
           <div tabindex="0" class="dropdown-content bg-base-100 rounded-box z-[1] w-80 shadow-lg mt-2">
-            <div class="p-4 border-b border-base-300">
+            <div class="p-4 border-b border-base-300 flex items-center justify-between">
               <h3 class="font-semibold text-lg">Notifications</h3>
+              <button :if={@unread_notifications_count > 0} phx-click="mark_all_notifications_read" class="btn btn-xs btn-ghost text-primary">
+                Tout lire
+              </button>
             </div>
-            <div class="p-8 text-center text-base-content/50">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-              </svg>
-              <p class="text-sm">Aucune notification</p>
-              <p class="text-xs mt-1">Les nouvelles notifications apparaîtront ici</p>
-            </div>
+            <%= if @notifications == [] do %>
+              <div class="p-8 text-center text-base-content/50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <p class="text-sm">Aucune notification</p>
+                <p class="text-xs mt-1">Les nouvelles notifications apparaîtront ici</p>
+              </div>
+            <% else %>
+              <div class="max-h-96 overflow-y-auto divide-y divide-base-200">
+                <%= for notification <- @notifications do %>
+                  <a
+                    href={~p"/posts?post_id=#{notification.post_id}"}
+                    phx-click="mark_notification_read"
+                    phx-value-id={notification.id}
+                    class={"flex items-start gap-3 p-3 hover:bg-base-200 transition-colors #{unless notification.read, do: "bg-primary/5", else: ""}"}
+                  >
+                    <%= if notification.actor.avatar do %>
+                      <div class="w-9 h-9 rounded-full overflow-hidden flex-shrink-0">
+                        <img src={"/uploads/avatars/#{notification.actor.avatar}"} alt="" class="w-full h-full object-cover" />
+                      </div>
+                    <% else %>
+                      <div class="w-9 h-9 rounded-full bg-primary grid place-items-center flex-shrink-0">
+                        <span class="text-primary-content text-sm font-bold">{String.first(notification.actor.name)}</span>
+                      </div>
+                    <% end %>
+                    <div class="flex-1 min-w-0">
+                      <p class="text-sm">
+                        <span class="font-semibold">{notification.actor.name}</span>
+                        <span class="text-base-content/70">
+                          <%= if notification.type == "reply" do %>
+                            a répondu à ton commentaire
+                          <% else %>
+                            a commenté ton post
+                          <% end %>
+                        </span>
+                      </p>
+                      <p class="text-xs text-base-content/50 mt-1">{time_ago(notification.inserted_at)}</p>
+                    </div>
+                    <div :if={!notification.read} class="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-2"></div>
+                  </a>
+                <% end %>
+              </div>
+            <% end %>
           </div>
         </div>
 

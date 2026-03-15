@@ -5,6 +5,7 @@ defmodule MonAppWeb.LiveAuth do
   import Phoenix.Component
 
   alias MonApp.Accounts
+  alias MonApp.Notifications
 
   @doc "Charge le user courant dans les assigns"
   def on_mount(:fetch_current_user, _params, session, socket) do
@@ -30,7 +31,14 @@ defmodule MonAppWeb.LiveAuth do
         user = Accounts.get_user(user_id)
 
         if user do
-          {:cont, assign(socket, :current_user, user)}
+          notifications = Notifications.list_notifications(user.id)
+          unread_notifications_count = Notifications.count_unread(user.id)
+
+          {:cont,
+           socket
+           |> assign(:current_user, user)
+           |> assign(:notifications, notifications)
+           |> assign(:unread_notifications_count, unread_notifications_count)}
         else
           {:halt,
            socket
