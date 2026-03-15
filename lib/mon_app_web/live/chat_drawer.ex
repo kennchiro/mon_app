@@ -441,15 +441,15 @@ defmodule MonAppWeb.ChatDrawer do
               </svg>
             </button>
             <%= if @other_user && @conversation do %>
-              <div class="relative shrink-0">
+              <a href={~p"/profile/#{@other_user.id}"} class="relative shrink-0">
                 <.user_avatar name={@other_user.name} avatar={@other_user.avatar} size="w-11 h-11" />
                 <span
                   :if={@online}
                   class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
                 />
-              </div>
+              </a>
               <div class="flex-1 min-w-0 py-0.5">
-                <h2 class="font-semibold text-base truncate leading-tight">{@other_user.name}</h2>
+                <a href={~p"/profile/#{@other_user.id}"} class="font-semibold text-base truncate leading-tight hover:underline block">{@other_user.name}</a>
                 <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
                   <%= cond do %>
                     <% @typing -> %>

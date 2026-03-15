@@ -495,4 +495,128 @@ defmodule MonAppWeb.CoreComponents do
   def translate_errors(errors, field) when is_list(errors) do
     for {^field, {msg, opts}} <- errors, do: translate_error({msg, opts})
   end
+
+  # ============== CONFIRM DIALOG ==============
+
+  @doc """
+  Renders a confirmation dialog modal.
+
+  Replaces the browser's native `data-confirm` with a styled DaisyUI dialog.
+  The dialog slides up from the bottom on mobile and centers on desktop.
+
+  ## Attributes
+
+    * `:id` - unique ID for the dialog (required)
+    * `:title` - dialog title (required)
+    * `:message` - description text (optional)
+    * `:icon` - icon type: `:warning`, `:danger`, `:info` (default `:warning`)
+    * `:confirm_text` - confirm button label (default "Confirmer")
+    * `:cancel_text` - cancel button label (default "Annuler")
+    * `:confirm_event` - the phx-click event for the confirm button (required)
+    * `:confirm_value` - optional map of phx-value-* attributes for the confirm button
+    * `:confirm_style` - button style: `:danger`, `:primary`, `:warning` (default `:danger`)
+    * `:on_cancel` - the phx-click event for the cancel button (default closes the dialog)
+
+  ## Example
+
+      <.confirm_dialog
+        :if={@show_remove_friend}
+        id="remove-friend-dialog"
+        title="Retirer cet ami ?"
+        message="Vous ne pourrez plus voir ses publications privées."
+        icon={:danger}
+        confirm_text="Retirer"
+        confirm_event="confirm_remove_friend"
+        on_cancel="cancel_remove_friend"
+      />
+  """
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :message, :string, default: nil
+  attr :icon, :atom, default: :warning, values: [:warning, :danger, :info]
+  attr :confirm_text, :string, default: "Confirmer"
+  attr :cancel_text, :string, default: "Annuler"
+  attr :confirm_event, :string, required: true
+  attr :confirm_value, :map, default: %{}
+  attr :confirm_style, :atom, default: :danger, values: [:danger, :primary, :warning]
+  attr :on_cancel, :string, default: nil
+  attr :rest, :global
+
+  def confirm_dialog(assigns) do
+    icon_bg = case assigns.icon do
+      :danger -> "bg-error/10"
+      :warning -> "bg-warning/10"
+      :info -> "bg-info/10"
+    end
+
+    icon_color = case assigns.icon do
+      :danger -> "text-error"
+      :warning -> "text-warning"
+      :info -> "text-info"
+    end
+
+    confirm_btn = case assigns.confirm_style do
+      :danger -> "btn-error"
+      :primary -> "btn-primary"
+      :warning -> "btn-warning"
+    end
+
+    assigns =
+      assigns
+      |> assign(:icon_bg, icon_bg)
+      |> assign(:icon_color, icon_color)
+      |> assign(:confirm_btn, confirm_btn)
+
+    ~H"""
+    <div
+      id={@id}
+      class="fixed inset-0 bg-black/60 z-[100] flex items-end md:items-center justify-center animate-in fade-in"
+      {@rest}
+    >
+      <div
+        class="bg-base-100 rounded-t-2xl md:rounded-2xl shadow-2xl w-full md:max-w-sm overflow-hidden animate-slide-up md:animate-none safe-area-bottom"
+        phx-click-away={@on_cancel || JS.push("close_confirm_dialog", value: %{id: @id})}
+      >
+        <div class="p-5 pb-3 text-center">
+          <div class={"w-14 h-14 mx-auto mb-3 rounded-full #{@icon_bg} flex items-center justify-center"}>
+            <%= case @icon do %>
+              <% :danger -> %>
+                <svg xmlns="http://www.w3.org/2000/svg" class={"h-7 w-7 #{@icon_color}"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              <% :warning -> %>
+                <svg xmlns="http://www.w3.org/2000/svg" class={"h-7 w-7 #{@icon_color}"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              <% :info -> %>
+                <svg xmlns="http://www.w3.org/2000/svg" class={"h-7 w-7 #{@icon_color}"} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            <% end %>
+          </div>
+          <h3 class="text-lg font-bold text-base-content">{@title}</h3>
+          <p :if={@message} class="text-sm text-base-content/60 mt-1">{@message}</p>
+        </div>
+
+        <div class="px-4 pb-5 flex gap-3">
+          <button
+            type="button"
+            phx-click={@on_cancel || JS.push("close_confirm_dialog", value: %{id: @id})}
+            class="btn btn-ghost flex-1 h-12 rounded-xl font-medium"
+          >
+            {@cancel_text}
+          </button>
+          <button
+            type="button"
+            phx-click={@confirm_event}
+            {for {k, v} <- @confirm_value, do: {"phx-value-#{k}", v}}
+            class={"btn #{@confirm_btn} flex-1 h-12 rounded-xl font-medium"}
+          >
+            {@confirm_text}
+          </button>
+        </div>
+      </div>
+    </div>
+    """
+  end
 end

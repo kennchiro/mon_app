@@ -74,6 +74,7 @@ defmodule MonAppWeb.PublicProfileLive do
            |> assign(:preview_image, nil)
            |> assign(:sharing_post, nil)
            |> assign(:share_form, to_form(%{"visibility" => "public"}))
+           |> assign(:show_remove_confirm, false)
            |> allow_upload(:comment_images,
              accept: ~w(.jpg .jpeg .png .gif .webp),
              max_entries: 4,
@@ -202,6 +203,19 @@ defmodule MonAppWeb.PublicProfileLive do
         other_user={@profile_user}
         current_user={@current_user}
       />
+
+      <!-- Remove Friend Confirm Dialog -->
+      <.confirm_dialog
+        :if={@show_remove_confirm}
+        id="remove-friend-dialog"
+        title="Retirer cet ami ?"
+        message={"Vous ne pourrez plus voir les publications privées de #{@profile_user.name}."}
+        icon={:danger}
+        confirm_text="Retirer"
+        cancel_text="Annuler"
+        confirm_event="confirm_remove_friend"
+        on_cancel="cancel_remove_friend"
+      />
     </div>
     """
   end
@@ -253,7 +267,7 @@ defmodule MonAppWeb.PublicProfileLive do
       </svg>
       Envoyer un message
     </button>
-    <button phx-click="remove_friend" class="btn btn-ghost btn-sm text-error" data-confirm="Retirer cet ami ?">
+    <button phx-click="show_remove_confirm" class="btn btn-ghost btn-sm text-error">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
       </svg>
@@ -319,7 +333,17 @@ defmodule MonAppWeb.PublicProfileLive do
   end
 
   @impl true
-  def handle_event("remove_friend", _params, socket) do
+  def handle_event("show_remove_confirm", _params, socket) do
+    {:noreply, assign(socket, :show_remove_confirm, true)}
+  end
+
+  @impl true
+  def handle_event("cancel_remove_friend", _params, socket) do
+    {:noreply, assign(socket, :show_remove_confirm, false)}
+  end
+
+  @impl true
+  def handle_event("confirm_remove_friend", _params, socket) do
     current_user = socket.assigns.current_user
     profile_user = socket.assigns.profile_user
 
@@ -329,10 +353,14 @@ defmodule MonAppWeb.PublicProfileLive do
          socket
          |> assign(:friendship_status, :none)
          |> assign(:friendship, nil)
-         |> assign(:friend_count, max(socket.assigns.friend_count - 1, 0))}
+         |> assign(:friend_count, max(socket.assigns.friend_count - 1, 0))
+         |> assign(:show_remove_confirm, false)}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Erreur")}
+        {:noreply,
+         socket
+         |> assign(:show_remove_confirm, false)
+         |> put_flash(:error, "Erreur")}
     end
   end
 

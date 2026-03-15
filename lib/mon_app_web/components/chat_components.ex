@@ -1305,32 +1305,42 @@ defmodule MonAppWeb.ChatComponents do
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-            <div class="relative shrink-0">
-              <%= if @is_group do %>
+            <%= if @is_group do %>
+              <div class="relative shrink-0">
                 <.group_avatar name={@display_name} size="w-11 h-11" />
-              <% else %>
+              </div>
+              <div class="flex-1 min-w-0 py-0.5">
+                <h2 class="font-semibold text-base truncate leading-tight">{@display_name}</h2>
+                <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
+                  <%= if @typing do %>
+                    <span class="text-primary">écrit...</span>
+                  <% else %>
+                    {@participant_count} participants
+                  <% end %>
+                </p>
+              </div>
+            <% else %>
+              <a href={~p"/profile/#{@other_user.id}"} class="relative shrink-0">
                 <.user_avatar name={@display_name} avatar={@avatar} size="w-11 h-11" />
                 <span
                   :if={@online}
                   class="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-base-100"
                 />
-              <% end %>
-            </div>
-            <div class="flex-1 min-w-0 py-0.5">
-              <h2 class="font-semibold text-base truncate leading-tight">{@display_name}</h2>
-              <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
-                <%= cond do %>
-                  <% @typing -> %>
-                    <span class="text-primary">écrit...</span>
-                  <% @is_group -> %>
-                    {@participant_count} participants
-                  <% @online -> %>
-                    En ligne
-                  <% true -> %>
-                    Hors ligne
-                <% end %>
-              </p>
-            </div>
+              </a>
+              <div class="flex-1 min-w-0 py-0.5">
+                <a href={~p"/profile/#{@other_user.id}"} class="font-semibold text-base truncate leading-tight hover:underline block">{@display_name}</a>
+                <p class="text-xs text-base-content/60 mt-0.5 leading-tight">
+                  <%= cond do %>
+                    <% @typing -> %>
+                      <span class="text-primary">écrit...</span>
+                    <% @online -> %>
+                      En ligne
+                    <% true -> %>
+                      Hors ligne
+                  <% end %>
+                </p>
+              </div>
+            <% end %>
           </div>
         </div>
 

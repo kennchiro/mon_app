@@ -109,10 +109,10 @@ defmodule MonAppWeb.UserComponents do
   defp action_buttons(%{type: :friend} = assigns) do
     ~H"""
     <button
-      phx-click="remove_friend"
+      phx-click="show_remove_friend_confirm"
       phx-value-id={@user.id}
+      phx-value-name={@user.name}
       class="btn btn-ghost btn-sm text-error"
-      data-confirm="Retirer cet ami ?"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6" />
@@ -145,10 +145,10 @@ defmodule MonAppWeb.UserComponents do
   defp action_buttons(%{type: :sent} = assigns) do
     ~H"""
     <button
-      phx-click="cancel_request"
+      phx-click="show_cancel_request_confirm"
       phx-value-id={@user.id}
+      phx-value-name={@user.name}
       class="btn btn-ghost btn-sm text-error"
-      data-confirm="Annuler cette demande ?"
     >
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

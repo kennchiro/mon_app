@@ -37,6 +37,9 @@ defmodule MonAppWeb.UsersLive do
      socket
      |> assign(:active_tab, :friends)
      |> assign(:unread_messages_count, unread_messages_count)
+     |> assign(:confirm_action, nil)
+     |> assign(:confirm_user_id, nil)
+     |> assign(:confirm_user_name, nil)
      |> load_data()}
   end
 
@@ -81,6 +84,31 @@ defmodule MonAppWeb.UsersLive do
           current_user={@current_user}
         />
       </main>
+
+      <.confirm_dialog
+        :if={@confirm_action == :remove_friend}
+        id="remove-friend-dialog"
+        title="Retirer cet ami ?"
+        message={"Vous ne pourrez plus voir les publications privées de #{@confirm_user_name}."}
+        icon={:danger}
+        confirm_text="Retirer"
+        cancel_text="Annuler"
+        confirm_event="confirm_remove_friend"
+        on_cancel="close_confirm_dialog"
+      />
+
+      <.confirm_dialog
+        :if={@confirm_action == :cancel_request}
+        id="cancel-request-dialog"
+        title="Annuler cette demande ?"
+        message={"La demande d'ami envoyée à #{@confirm_user_name} sera annulée."}
+        icon={:warning}
+        confirm_text="Annuler la demande"
+        cancel_text="Retour"
+        confirm_event="confirm_cancel_request"
+        confirm_style={:warning}
+        on_cancel="close_confirm_dialog"
+      />
     </div>
     """
   end
@@ -148,39 +176,74 @@ defmodule MonAppWeb.UsersLive do
   end
 
   @impl true
-  def handle_event("remove_friend", %{"id" => friend_id}, socket) do
+  def handle_event("show_remove_friend_confirm", %{"id" => id, "name" => name}, socket) do
+    {:noreply,
+     socket
+     |> assign(:confirm_action, :remove_friend)
+     |> assign(:confirm_user_id, id)
+     |> assign(:confirm_user_name, name)}
+  end
+
+  @impl true
+  def handle_event("confirm_remove_friend", _params, socket) do
     user_id = socket.assigns.current_user.id
+    friend_id = socket.assigns.confirm_user_id
 
     case Social.remove_friend(user_id, String.to_integer(friend_id)) do
       {:ok, _} ->
         notify_user(friend_id, :friend_removed)
         {:noreply,
          socket
+         |> assign(:confirm_action, nil)
          |> put_flash(:info, "Ami retiré")
          |> load_data()}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Erreur")}
+        {:noreply,
+         socket
+         |> assign(:confirm_action, nil)
+         |> put_flash(:error, "Erreur")}
     end
   end
 
   @impl true
-  def handle_event("cancel_request", %{"id" => friend_id}, socket) do
+  def handle_event("show_cancel_request_confirm", %{"id" => id, "name" => name}, socket) do
+    {:noreply,
+     socket
+     |> assign(:confirm_action, :cancel_request)
+     |> assign(:confirm_user_id, id)
+     |> assign(:confirm_user_name, name)}
+  end
+
+  @impl true
+  def handle_event("confirm_cancel_request", _params, socket) do
     user_id = socket.assigns.current_user.id
-    friend_id_int = String.to_integer(friend_id)
+    friend_id_int = String.to_integer(socket.assigns.confirm_user_id)
 
     case Social.cancel_friend_request(user_id, friend_id_int) do
       {:ok, _} ->
-        # Notifier le destinataire que la demande a été annulée
         notify_user(friend_id_int, :request_cancelled)
         {:noreply,
          socket
+         |> assign(:confirm_action, nil)
          |> put_flash(:info, "Demande annulée")
          |> load_data()}
 
       {:error, _} ->
-        {:noreply, put_flash(socket, :error, "Erreur")}
+        {:noreply,
+         socket
+         |> assign(:confirm_action, nil)
+         |> put_flash(:error, "Erreur")}
     end
+  end
+
+  @impl true
+  def handle_event("close_confirm_dialog", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:confirm_action, nil)
+     |> assign(:confirm_user_id, nil)
+     |> assign(:confirm_user_name, nil)}
   end
 
   # ============== NOTIFICATION EVENTS ==============
