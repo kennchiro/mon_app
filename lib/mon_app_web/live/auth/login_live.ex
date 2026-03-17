@@ -50,7 +50,8 @@ defmodule MonAppWeb.LoginLive do
             <span>{@error}</span>
           </div>
 
-          <form
+          <.form
+            for={%{}}
             id="login-form"
             phx-submit="login"
             phx-trigger-action={@trigger_submit}
@@ -113,7 +114,7 @@ defmodule MonAppWeb.LoginLive do
             <button type="submit" class="btn w-full h-12 text-base font-semibold bg-base-content text-base-100 hover:bg-pink-500 hover:text-white border-none transition-all duration-300 mt-2">
               Se connecter
             </button>
-          </form>
+          </.form>
 
           <p class="text-center text-base-content/50 text-sm mt-6">
             Pas encore de compte ?

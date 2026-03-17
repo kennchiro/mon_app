@@ -40,7 +40,7 @@ defmodule MonAppWeb.Navbar do
   def navbar(assigns) do
     ~H"""
     <!-- ===== TOP HEADER (mobile + desktop) ===== -->
-    <nav class="bg-base-100 shadow-sm sticky top-0 z-50 px-4 h-14 flex items-center">
+    <nav class="bg-base-100 shadow-sm sticky top-0 z-50 px-4 pt-[env(safe-area-inset-top)] flex items-center" style="min-height: calc(3.5rem + env(safe-area-inset-top, 0px))">
       <!-- Logo -->
       <div class="flex-1 min-w-0">
         <.link navigate={~p"/posts"} class="flex items-center gap-1.5 text-xl font-bold truncate">
@@ -210,7 +210,7 @@ defmodule MonAppWeb.Navbar do
     </nav>
 
     <!-- ===== BOTTOM NAV (mobile only) ===== -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-200 safe-area-bottom">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-base-100 border-t border-base-200 pb-[env(safe-area-inset-bottom)]">
       <div class="flex justify-around items-center h-14">
         <.bottom_nav_item href={~p"/posts"} active={@current_path == "/posts"} label="Accueil">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill={if @current_path == "/posts", do: "currentColor", else: "none"} viewBox="0 0 24 24" stroke="currentColor" stroke-width={if @current_path == "/posts", do: "0", else: "2"}>

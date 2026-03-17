@@ -18,6 +18,11 @@ defmodule MonAppWeb.SessionController do
     end
   end
 
+  # Fallback: GET sans params ou params incomplets → redirect login
+  def create(conn, _params) do
+    redirect(conn, to: ~p"/login")
+  end
+
   def delete(conn, _params) do
     conn
     |> clear_session()

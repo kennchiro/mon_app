@@ -75,16 +75,24 @@ defmodule MonApp.Blog do
   @doc """
   Récupère les posts visibles pour un user avec pagination.
   """
-  @doc "Marque les dates passées comme complétées"
+  @doc "Marque les dates passées comme complétées (max 1x par heure via ETS cache)"
   def expire_past_dates do
-    now = NaiveDateTime.utc_now()
+    last_run = :persistent_term.get(:last_expire_dates, 0)
+    now_unix = System.system_time(:second)
 
-    Post
-    |> where([p], p.post_type == "date")
-    |> where([p], not is_nil(p.date_datetime))
-    |> where([p], p.date_datetime < ^now)
-    |> where([p], p.date_status == "open")
-    |> Repo.update_all(set: [date_status: "completed"])
+    if now_unix - last_run > 3600 do
+      :persistent_term.put(:last_expire_dates, now_unix)
+      now = NaiveDateTime.utc_now()
+
+      Post
+      |> where([p], p.post_type == "date")
+      |> where([p], not is_nil(p.date_datetime))
+      |> where([p], p.date_datetime < ^now)
+      |> where([p], p.date_status == "open")
+      |> Repo.update_all(set: [date_status: "completed"])
+    else
+      {0, nil}
+    end
   end
 
   def list_posts_for_user_paginated(user_id, page \\ 1, per_page \\ @posts_per_page, opts \\ []) do
@@ -93,7 +101,7 @@ defmodule MonApp.Blog do
     blocked_ids = Social.list_blocked_ids(user_id)
     post_type_filter = Keyword.get(opts, :post_type, "all")
 
-    # Auto-expire past dates
+    # Auto-expire past dates (throttled: 1x/hour)
     expire_past_dates()
 
     query =

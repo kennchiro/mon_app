@@ -379,7 +379,7 @@ defmodule MonAppWeb.PublicProfileLive do
 
             <div class="space-y-1.5 mt-4">
               <button
-                :for={reason <- MonApp.Social.UserReport.reasons()}
+                :for={reason <- MonApp.Social.UserReport.reasons_for("user")}
                 type="button"
                 phx-click="submit_report"
                 phx-value-reason={reason}
