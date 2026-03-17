@@ -3,6 +3,7 @@ defmodule MonAppWeb.PublicProfileLive do
 
   alias MonApp.Accounts
   alias MonApp.Blog
+  alias MonApp.Blog.Post
   alias MonApp.Blog.Comment
   alias MonApp.Social
   alias MonApp.Chat
@@ -12,6 +13,8 @@ defmodule MonAppWeb.PublicProfileLive do
 
   import MonAppWeb.Navbar
   import MonAppWeb.PostComponents
+  import MonAppWeb.Toast, only: [toast_popup: 1]
+  alias MonAppWeb.ToastHandler
 
   # ============== LIFECYCLE ==============
 
@@ -45,9 +48,14 @@ defmodule MonAppWeb.PublicProfileLive do
           friendship_status = Social.friendship_status(current_user.id, profile_user_id)
           friendship = Social.get_friendship(current_user.id, profile_user_id)
           friend_count = Social.count_friends(profile_user_id)
-          posts = Blog.list_user_posts_for_viewer(profile_user_id, current_user.id)
+          dates_count = Blog.count_user_dates(profile_user_id)
+          posts_count = Blog.count_user_posts(profile_user_id)
+          dates_by_category = Blog.count_user_dates_by_category(profile_user_id)
           pending_count = length(Social.list_pending_requests(current_user.id))
           unread_messages_count = Chat.count_total_unread(current_user.id)
+
+          {date_posts, date_has_more} = Blog.list_user_date_posts_paginated(profile_user_id, 1)
+          {standard_posts, standard_has_more} = Blog.list_user_standard_posts_paginated(profile_user_id, 1)
 
           {:ok,
            socket
@@ -55,7 +63,17 @@ defmodule MonAppWeb.PublicProfileLive do
            |> assign(:friendship_status, friendship_status)
            |> assign(:friendship, friendship)
            |> assign(:friend_count, friend_count)
-           |> assign(:posts, posts)
+           |> assign(:dates_count, dates_count)
+           |> assign(:posts_count, posts_count)
+           |> assign(:dates_by_category, dates_by_category)
+           |> assign(:profile_tab, if(profile_user.show_dates_on_profile, do: "dates", else: "posts"))
+           |> assign(:date_posts, date_posts)
+           |> assign(:date_page, 1)
+           |> assign(:date_has_more, date_has_more)
+           |> assign(:standard_posts, standard_posts)
+           |> assign(:standard_page, 1)
+           |> assign(:standard_has_more, standard_has_more)
+           |> assign(:posts, date_posts ++ standard_posts)
            |> assign(:pending_requests_count, pending_count)
            |> assign(:unread_messages_count, unread_messages_count)
            |> assign(:chat_drawer_open, false)
@@ -79,7 +97,8 @@ defmodule MonAppWeb.PublicProfileLive do
              accept: ~w(.jpg .jpeg .png .gif .webp),
              max_entries: 4,
              max_file_size: 5_000_000
-           )}
+           )
+           |> ToastHandler.init_toast()}
       end
     end
   end
@@ -98,6 +117,7 @@ defmodule MonAppWeb.PublicProfileLive do
         notifications={@notifications}
         unread_notifications_count={@unread_notifications_count}
       />
+      <.toast_popup toast={@toast} />
 
       <main class={"max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6 #{if @viewing_post || @viewing_reactions_post || @viewing_comment_reactions || @preview_image || @sharing_post, do: "overflow-hidden h-screen", else: ""}"}>
         <!-- Post Modals -->
@@ -134,67 +154,160 @@ defmodule MonAppWeb.PublicProfileLive do
           form={@share_form}
         />
 
-        <!-- Profil Header -->
-        <div class="card bg-base-100 shadow-sm">
-          <div class="card-body">
-            <div class="flex flex-col sm:flex-row items-center gap-6">
+        <!-- Profile Header Card -->
+        <div class="bg-base-100 rounded-2xl shadow-sm overflow-hidden mb-4">
+          <div class="p-5 sm:p-6">
+            <div class="flex flex-col sm:flex-row items-center gap-5">
               <!-- Avatar -->
-              <div class="w-28 h-28 rounded-full overflow-hidden bg-primary grid place-items-center ring-4 ring-base-200">
+              <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-primary grid place-items-center ring-4 ring-base-200 shrink-0">
                 <%= if @profile_user.avatar do %>
-                  <img
-                    src={"/uploads/avatars/#{@profile_user.avatar}"}
-                    alt="Avatar"
-                    class="w-full h-full object-cover"
-                  />
+                  <img src={"/uploads/avatars/#{@profile_user.avatar}"} alt="Avatar" class="w-full h-full object-cover" />
                 <% else %>
-                  <span class="text-primary-content text-4xl font-bold leading-none">
-                    {String.first(@profile_user.name)}
-                  </span>
+                  <span class="text-primary-content text-3xl sm:text-4xl font-bold leading-none">{String.first(@profile_user.name)}</span>
                 <% end %>
               </div>
 
-              <!-- Infos -->
-              <div class="text-center sm:text-left flex-1">
-                <h1 class="text-2xl font-bold">{@profile_user.name}</h1>
-                <p class="text-base-content/60">{@profile_user.email}</p>
-                <div class="flex items-center gap-4 mt-2 justify-center sm:justify-start">
-                  <span class="text-sm text-base-content/50">
-                    {@friend_count} ami{if @friend_count != 1, do: "s", else: ""}
+              <!-- User Info -->
+              <div class="text-center sm:text-left flex-1 min-w-0">
+                <h1 class="text-xl sm:text-2xl font-bold truncate">@{@profile_user.name}</h1>
+                <p class="text-base-content/50 text-sm truncate">{@profile_user.email}</p>
+
+                <!-- Bio -->
+                <p :if={@profile_user.bio && @profile_user.bio != ""} class="text-sm text-base-content/70 mt-2 line-clamp-3">
+                  {@profile_user.bio}
+                </p>
+
+                <!-- Profile details pills -->
+                <div class="flex flex-wrap justify-center sm:justify-start gap-1.5 mt-2">
+                  <span :if={@profile_user.gender} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
+                    {MonApp.Accounts.User.gender_label(@profile_user.gender)}
                   </span>
-                  <span class="text-sm text-base-content/40">
-                    Membre depuis {Calendar.strftime(@profile_user.inserted_at, "%B %Y")}
+                  <span :if={@profile_user.location && @profile_user.location != ""} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {@profile_user.location}
+                  </span>
+                  <span :if={@profile_user.looking_for && @profile_user.looking_for != "any"} class="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-500/10 rounded-full text-xs text-pink-500">
+                    {MonApp.Accounts.User.looking_for_label(@profile_user.looking_for)}
+                  </span>
+                  <span :if={@profile_user.nationality} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
+                    {MonApp.Accounts.User.nationality_flag(@profile_user.nationality)} {MonApp.Accounts.User.nationality_label(@profile_user.nationality)}
+                  </span>
+                  <span :if={@profile_user.birthdate} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
+                    {trunc(Date.diff(Date.utc_today(), @profile_user.birthdate) / 365)} ans
                   </span>
                 </div>
-              </div>
 
-              <!-- Action Buttons -->
-              <div class="flex gap-2">
-                <.friendship_actions status={@friendship_status} friendship={@friendship} profile_user={@profile_user} />
+                <p class="text-xs text-base-content/40 mt-2">
+                  Membre depuis {Calendar.strftime(@profile_user.inserted_at, "%B %Y")}
+                </p>
+
+                <!-- Stats -->
+                <div class="flex justify-center sm:justify-start gap-5 mt-3">
+                  <div class="text-center">
+                    <div class="text-lg font-bold text-base-content">{@friend_count}</div>
+                    <div class="text-xs text-base-content/50">Amis</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-lg font-bold text-pink-500">{@dates_count}</div>
+                    <div class="text-xs text-base-content/50">Dates</div>
+                  </div>
+                  <div class="text-center">
+                    <div class="text-lg font-bold text-base-content">{@posts_count}</div>
+                    <div class="text-xs text-base-content/50">Posts</div>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 mt-4 justify-center sm:justify-start">
+              <.friendship_actions status={@friendship_status} friendship={@friendship} profile_user={@profile_user} />
             </div>
           </div>
         </div>
 
-        <!-- Posts -->
-        <div class="mt-6">
-          <h2 class="text-lg font-semibold mb-4">Publications</h2>
-          <%= if @posts == [] do %>
-            <div class="card bg-base-100 shadow-sm">
-              <div class="card-body text-center text-base-content/50 py-10">
-                <p>Aucune publication visible.</p>
+        <!-- Date Categories Stats -->
+        <div :if={@dates_by_category != %{} && @profile_user.show_dates_on_profile} class="bg-base-100 rounded-2xl shadow-sm p-4 sm:p-5 mb-4">
+          <h3 class="text-sm font-semibold text-base-content/70 mb-3">Dates par catégorie</h3>
+          <div class="flex flex-wrap gap-2">
+            <%= for {cat, count} <- Enum.sort_by(@dates_by_category, fn {_, c} -> -c end) do %>
+              <div class="flex items-center gap-1.5 px-3 py-1.5 bg-base-200/60 rounded-full text-sm">
+                <span>{Post.date_category_emoji(cat)}</span>
+                <span class="text-base-content/70">{Post.date_category_label(cat)}</span>
+                <span class="font-bold text-pink-500">{count}</span>
               </div>
-            </div>
-          <% else %>
-            <div class="space-y-4">
-              <%= for post <- @posts do %>
-                <%= if post.post_type == "date" do %>
-                  <.date_post_card post={post} current_user={@current_user} />
-                <% else %>
-                  <.post_item post={post} current_user={@current_user} />
-                <% end %>
-              <% end %>
-            </div>
-          <% end %>
+            <% end %>
+          </div>
+        </div>
+
+        <%
+          show_dates = @profile_user.show_dates_on_profile
+          show_posts = @profile_user.show_posts_on_profile
+        %>
+
+        <!-- Tabs: Dates / Publications (only if at least one visible) -->
+        <div :if={show_dates || show_posts} class="flex gap-1 bg-base-100 rounded-xl p-1 mb-4 shadow-sm">
+          <button
+            :if={show_dates}
+            phx-click="switch_profile_tab"
+            phx-value-tab="dates"
+            class={"flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all #{if @profile_tab == "dates", do: "bg-pink-500 text-white shadow-sm", else: "text-base-content/50 hover:text-base-content"}"}
+          >
+            Dates ({@dates_count})
+          </button>
+          <button
+            :if={show_posts}
+            phx-click="switch_profile_tab"
+            phx-value-tab="posts"
+            class={"flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all #{if @profile_tab == "posts", do: "bg-pink-500 text-white shadow-sm", else: "text-base-content/50 hover:text-base-content"}"}
+          >
+            Publications ({@posts_count})
+          </button>
+        </div>
+
+        <!-- Nothing visible -->
+        <div :if={!show_dates && !show_posts} class="bg-base-100 rounded-2xl shadow-sm p-8 text-center">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-base-content/20 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+          </svg>
+          <p class="text-base-content/40 text-sm">Cet utilisateur a masqué ses publications</p>
+        </div>
+
+        <!-- Date Posts Tab -->
+        <div :if={show_dates && @profile_tab == "dates"} class="space-y-4">
+          <div :if={@date_posts == []} class="bg-base-100 rounded-2xl shadow-sm p-8 text-center">
+            <p class="text-base-content/50">Aucun date publié</p>
+          </div>
+
+          <.date_post_card :for={post <- @date_posts} post={post} current_user={@current_user} />
+
+          <button
+            :if={@date_has_more}
+            phx-click="load_more_dates"
+            class="btn btn-ghost w-full border border-base-300 rounded-xl text-sm"
+          >
+            Voir plus de dates
+          </button>
+        </div>
+
+        <!-- Standard Posts Tab -->
+        <div :if={show_posts && @profile_tab == "posts"} class="space-y-4">
+          <div :if={@standard_posts == []} class="bg-base-100 rounded-2xl shadow-sm p-8 text-center">
+            <p class="text-base-content/50">Aucune publication</p>
+          </div>
+
+          <.post_item :for={post <- @standard_posts} post={post} current_user={@current_user} />
+
+          <button
+            :if={@standard_has_more}
+            phx-click="load_more_posts"
+            class="btn btn-ghost w-full border border-base-300 rounded-xl text-sm"
+          >
+            Voir plus de publications
+          </button>
         </div>
       </main>
 
@@ -279,6 +392,41 @@ defmodule MonAppWeb.PublicProfileLive do
     """
   end
 
+  # ============== PROFILE TAB & PAGINATION ==============
+
+  @impl true
+  def handle_event("switch_profile_tab", %{"tab" => tab}, socket) do
+    {:noreply, assign(socket, :profile_tab, tab)}
+  end
+
+  @impl true
+  def handle_event("load_more_dates", _, socket) do
+    profile_user_id = socket.assigns.profile_user.id
+    next_page = socket.assigns.date_page + 1
+    {new_posts, has_more} = Blog.list_user_date_posts_paginated(profile_user_id, next_page)
+
+    {:noreply,
+     socket
+     |> assign(:date_posts, socket.assigns.date_posts ++ new_posts)
+     |> assign(:date_page, next_page)
+     |> assign(:date_has_more, has_more)
+     |> assign(:posts, (socket.assigns.date_posts ++ new_posts) ++ socket.assigns.standard_posts)}
+  end
+
+  @impl true
+  def handle_event("load_more_posts", _, socket) do
+    profile_user_id = socket.assigns.profile_user.id
+    next_page = socket.assigns.standard_page + 1
+    {new_posts, has_more} = Blog.list_user_standard_posts_paginated(profile_user_id, next_page)
+
+    {:noreply,
+     socket
+     |> assign(:standard_posts, socket.assigns.standard_posts ++ new_posts)
+     |> assign(:standard_page, next_page)
+     |> assign(:standard_has_more, has_more)
+     |> assign(:posts, socket.assigns.date_posts ++ (socket.assigns.standard_posts ++ new_posts))}
+  end
+
   # ============== FRIENDSHIP EVENTS ==============
 
   @impl true
@@ -288,6 +436,7 @@ defmodule MonAppWeb.PublicProfileLive do
 
     case Social.send_friend_request(current_user.id, profile_user.id) do
       {:ok, friendship} ->
+        Notifications.notify_friend_request(current_user, profile_user.id)
         {:noreply,
          socket
          |> assign(:friendship_status, :request_sent)
@@ -295,6 +444,9 @@ defmodule MonAppWeb.PublicProfileLive do
 
       {:error, :already_exists} ->
         {:noreply, put_flash(socket, :info, "Demande déjà envoyée")}
+
+      {:error, :daily_limit_reached} ->
+        {:noreply, put_flash(socket, :error, "Vous avez atteint la limite de 20 demandes par jour")}
 
       {:error, _} ->
         {:noreply, put_flash(socket, :error, "Erreur lors de l'envoi")}
@@ -308,6 +460,7 @@ defmodule MonAppWeb.PublicProfileLive do
 
     case Social.accept_friend_request(friendship_id, current_user.id) do
       {:ok, friendship} ->
+        Notifications.notify_friend_accepted(current_user, friendship.user_id)
         {:noreply,
          socket
          |> assign(:friendship_status, :friends)
@@ -393,6 +546,14 @@ defmodule MonAppWeb.PublicProfileLive do
   @impl true
   def handle_event("close_chat_drawer", _params, socket) do
     {:noreply, assign(socket, :chat_drawer_open, false)}
+  end
+
+  # ============== TOAST EVENTS ==============
+
+  @impl true
+  def handle_event("dismiss_toast", _, socket) do
+    Process.send_after(self(), :clear_toast, 300)
+    {:noreply, ToastHandler.dismiss_toast(socket)}
   end
 
   # ============== NOTIFICATION EVENTS ==============
@@ -993,6 +1154,19 @@ defmodule MonAppWeb.PublicProfileLive do
       send_update(MonAppWeb.ChatDrawer, id: "chat-drawer", new_message: message)
     end
 
+    # Toast si pas dans le drawer actif et pas de soi-même
+    socket =
+      if !drawer_active?(socket, message.conversation_id) && message.sender_id != user_id do
+        sender = MonApp.Accounts.get_user(message.sender_id)
+        if sender do
+          ToastHandler.show_message_toast(socket, message, sender.name, sender.avatar)
+        else
+          socket
+        end
+      else
+        socket
+      end
+
     {:noreply, assign(socket, :unread_messages_count, unread_count)}
   end
 
@@ -1052,7 +1226,8 @@ defmodule MonAppWeb.PublicProfileLive do
     {:noreply,
      socket
      |> assign(:notifications, notifications)
-     |> assign(:unread_notifications_count, unread_count)}
+     |> assign(:unread_notifications_count, unread_count)
+     |> ToastHandler.show_notification_toast(notification)}
   end
 
   @impl true
@@ -1074,6 +1249,16 @@ defmodule MonAppWeb.PublicProfileLive do
      |> assign(:friendship_status, friendship_status)
      |> assign(:friendship, friendship)
      |> assign(:friend_count, friend_count)}
+  end
+
+  @impl true
+  def handle_info(:auto_dismiss_toast, socket) do
+    {:noreply, ToastHandler.dismiss_toast(socket)}
+  end
+
+  @impl true
+  def handle_info(:clear_toast, socket) do
+    {:noreply, ToastHandler.clear_toast(socket)}
   end
 
   @impl true

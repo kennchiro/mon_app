@@ -522,6 +522,68 @@ defmodule MonApp.Blog do
   end
 
   @doc "Liste mes date posts (ceux que j'ai créés)"
+  @doc "Compte les dates par catégorie pour un utilisateur"
+  def count_user_dates_by_category(user_id) do
+    Post
+    |> where([p], p.post_type == "date" and p.user_id == ^user_id)
+    |> group_by([p], p.date_category)
+    |> select([p], {p.date_category, count(p.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Compte le total de dates d'un utilisateur"
+  def count_user_dates(user_id) do
+    Post
+    |> where([p], p.post_type == "date" and p.user_id == ^user_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Compte le total de publications standard d'un utilisateur"
+  def count_user_posts(user_id) do
+    Post
+    |> where([p], p.post_type == "standard" and p.user_id == ^user_id)
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Liste les posts standard d'un user avec pagination"
+  def list_user_standard_posts_paginated(user_id, page, per_page \\ 10) do
+    offset = (page - 1) * per_page
+
+    posts =
+      Post
+      |> where([p], p.post_type == "standard" and p.user_id == ^user_id)
+      |> order_by(desc: :inserted_at)
+      |> limit(^(per_page + 1))
+      |> offset(^offset)
+      |> Repo.all()
+      |> Repo.preload([:user, :images, :reactions, :shares,
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+
+    has_more = length(posts) > per_page
+    {Enum.take(posts, per_page), has_more}
+  end
+
+  @doc "Liste les date posts d'un user avec pagination"
+  def list_user_date_posts_paginated(user_id, page, per_page \\ 10) do
+    offset = (page - 1) * per_page
+
+    posts =
+      Post
+      |> where([p], p.post_type == "date" and p.user_id == ^user_id)
+      |> order_by(desc: :inserted_at)
+      |> limit(^(per_page + 1))
+      |> offset(^offset)
+      |> Repo.all()
+      |> Repo.preload([:user, :images, :reactions, :shares, [date_applications: :user],
+        shared_post: [:user, :images],
+        comments: {comments_query(), [:user, :images, :reactions, replies: [:user, :images, :reactions]]}])
+
+    has_more = length(posts) > per_page
+    {Enum.take(posts, per_page), has_more}
+  end
+
   def list_my_date_posts(user_id) do
     Post
     |> where([p], p.post_type == "date" and p.user_id == ^user_id)

@@ -123,10 +123,97 @@
   animation: nav-tab-pop 0.3s ease-out;
 }
 
+/* ===== Toast notifications ===== */
+
+@keyframes toast-slide-in-mobile {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-in-desktop {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toast-slide-out-mobile {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes toast-slide-out-desktop {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.toast-enter {
+  animation: toast-slide-in-mobile 0.35s ease-out;
+}
+
+.toast-exit {
+  animation: toast-slide-out-mobile 0.25s ease-in forwards;
+}
+
+@media (min-width: 768px) {
+  .toast-enter {
+    animation: toast-slide-in-desktop 0.35s ease-out;
+  }
+  .toast-exit {
+    animation: toast-slide-out-desktop 0.25s ease-in forwards;
+  }
+}
+
+/* Progress bar animation */
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.toast-progress-bar {
+  animation: toast-progress 5s linear;
+}
+
 /* Prevent horizontal scroll globally */
 html, body {
   overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* Disable text selection on mobile */
+@media (max-width: 767px) {
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Keep selection enabled for inputs and textareas */
+  input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 /* Animation pour la bottom sheet qui glisse depuis la droite */

@@ -18,6 +18,14 @@ defmodule MonApp.Accounts.User do
     field :looking_for, :string, default: "any"
     field :interests, {:array, :string}, default: []
     field :location, :string
+    field :nationality, :string
+
+    # Privacy settings
+    field :show_dates_on_profile, :boolean, default: true
+    field :show_posts_on_profile, :boolean, default: true
+
+    # Account management
+    field :scheduled_deletion_at, :naive_datetime
 
     # Champ virtuel (pas en DB)
     field :password, :string, virtual: true
@@ -63,6 +71,215 @@ defmodule MonApp.Accounts.User do
   def gender_label("other"), do: "Autre"
   def gender_label(_), do: nil
 
+  @nationalities [
+    {"AF", "🇦🇫", "Afghane"},
+    {"ZA", "🇿🇦", "Sud-Africaine"},
+    {"AL", "🇦🇱", "Albanaise"},
+    {"DZ", "🇩🇿", "Algérienne"},
+    {"DE", "🇩🇪", "Allemande"},
+    {"AD", "🇦🇩", "Andorrane"},
+    {"AO", "🇦🇴", "Angolaise"},
+    {"AG", "🇦🇬", "Antiguaise"},
+    {"SA", "🇸🇦", "Saoudienne"},
+    {"AR", "🇦🇷", "Argentine"},
+    {"AM", "🇦🇲", "Arménienne"},
+    {"AU", "🇦🇺", "Australienne"},
+    {"AT", "🇦🇹", "Autrichienne"},
+    {"AZ", "🇦🇿", "Azerbaïdjanaise"},
+    {"BS", "🇧🇸", "Bahamienne"},
+    {"BH", "🇧🇭", "Bahreïnienne"},
+    {"BD", "🇧🇩", "Bangladaise"},
+    {"BB", "🇧🇧", "Barbadienne"},
+    {"BE", "🇧🇪", "Belge"},
+    {"BZ", "🇧🇿", "Bélizienne"},
+    {"BJ", "🇧🇯", "Béninoise"},
+    {"BT", "🇧🇹", "Bhoutanaise"},
+    {"BY", "🇧🇾", "Biélorusse"},
+    {"MM", "🇲🇲", "Birmane"},
+    {"BO", "🇧🇴", "Bolivienne"},
+    {"BA", "🇧🇦", "Bosnienne"},
+    {"BW", "🇧🇼", "Botswanaise"},
+    {"BR", "🇧🇷", "Brésilienne"},
+    {"BN", "🇧🇳", "Brunéienne"},
+    {"BG", "🇧🇬", "Bulgare"},
+    {"BF", "🇧🇫", "Burkinabè"},
+    {"BI", "🇧🇮", "Burundaise"},
+    {"KH", "🇰🇭", "Cambodgienne"},
+    {"CM", "🇨🇲", "Camerounaise"},
+    {"CA", "🇨🇦", "Canadienne"},
+    {"CV", "🇨🇻", "Cap-Verdienne"},
+    {"CF", "🇨🇫", "Centrafricaine"},
+    {"CL", "🇨🇱", "Chilienne"},
+    {"CN", "🇨🇳", "Chinoise"},
+    {"CY", "🇨🇾", "Chypriote"},
+    {"CO", "🇨🇴", "Colombienne"},
+    {"KM", "🇰🇲", "Comorienne"},
+    {"CG", "🇨🇬", "Congolaise (Brazza)"},
+    {"CD", "🇨🇩", "Congolaise (RDC)"},
+    {"KR", "🇰🇷", "Coréenne du Sud"},
+    {"KP", "🇰🇵", "Coréenne du Nord"},
+    {"CR", "🇨🇷", "Costaricaine"},
+    {"CI", "🇨🇮", "Ivoirienne"},
+    {"HR", "🇭🇷", "Croate"},
+    {"CU", "🇨🇺", "Cubaine"},
+    {"DK", "🇩🇰", "Danoise"},
+    {"DJ", "🇩🇯", "Djiboutienne"},
+    {"DM", "🇩🇲", "Dominiquaise"},
+    {"DO", "🇩🇴", "Dominicaine"},
+    {"EG", "🇪🇬", "Égyptienne"},
+    {"AE", "🇦🇪", "Émiratie"},
+    {"EC", "🇪🇨", "Équatorienne"},
+    {"ER", "🇪🇷", "Érythréenne"},
+    {"ES", "🇪🇸", "Espagnole"},
+    {"EE", "🇪🇪", "Estonienne"},
+    {"SZ", "🇸🇿", "Eswatinienne"},
+    {"ET", "🇪🇹", "Éthiopienne"},
+    {"FJ", "🇫🇯", "Fidjienne"},
+    {"FI", "🇫🇮", "Finlandaise"},
+    {"FR", "🇫🇷", "Française"},
+    {"GA", "🇬🇦", "Gabonaise"},
+    {"GM", "🇬🇲", "Gambienne"},
+    {"GE", "🇬🇪", "Géorgienne"},
+    {"GH", "🇬🇭", "Ghanéenne"},
+    {"GR", "🇬🇷", "Grecque"},
+    {"GD", "🇬🇩", "Grenadienne"},
+    {"GT", "🇬🇹", "Guatémaltèque"},
+    {"GN", "🇬🇳", "Guinéenne"},
+    {"GW", "🇬🇼", "Bissau-Guinéenne"},
+    {"GQ", "🇬🇶", "Équato-Guinéenne"},
+    {"GY", "🇬🇾", "Guyanienne"},
+    {"HT", "🇭🇹", "Haïtienne"},
+    {"HN", "🇭🇳", "Hondurienne"},
+    {"HU", "🇭🇺", "Hongroise"},
+    {"IN", "🇮🇳", "Indienne"},
+    {"ID", "🇮🇩", "Indonésienne"},
+    {"IQ", "🇮🇶", "Irakienne"},
+    {"IR", "🇮🇷", "Iranienne"},
+    {"IE", "🇮🇪", "Irlandaise"},
+    {"IS", "🇮🇸", "Islandaise"},
+    {"IL", "🇮🇱", "Israélienne"},
+    {"IT", "🇮🇹", "Italienne"},
+    {"JM", "🇯🇲", "Jamaïcaine"},
+    {"JP", "🇯🇵", "Japonaise"},
+    {"JO", "🇯🇴", "Jordanienne"},
+    {"KZ", "🇰🇿", "Kazakhe"},
+    {"KE", "🇰🇪", "Kényane"},
+    {"KG", "🇰🇬", "Kirghize"},
+    {"KI", "🇰🇮", "Kiribatienne"},
+    {"KW", "🇰🇼", "Koweïtienne"},
+    {"LA", "🇱🇦", "Laotienne"},
+    {"LS", "🇱🇸", "Lésothane"},
+    {"LV", "🇱🇻", "Lettone"},
+    {"LB", "🇱🇧", "Libanaise"},
+    {"LR", "🇱🇷", "Libérienne"},
+    {"LY", "🇱🇾", "Libyenne"},
+    {"LI", "🇱🇮", "Liechtensteinoise"},
+    {"LT", "🇱🇹", "Lituanienne"},
+    {"LU", "🇱🇺", "Luxembourgeoise"},
+    {"MK", "🇲🇰", "Macédonienne"},
+    {"MG", "🇲🇬", "Malagasy"},
+    {"MY", "🇲🇾", "Malaisienne"},
+    {"MW", "🇲🇼", "Malawienne"},
+    {"MV", "🇲🇻", "Maldivienne"},
+    {"ML", "🇲🇱", "Malienne"},
+    {"MT", "🇲🇹", "Maltaise"},
+    {"MA", "🇲🇦", "Marocaine"},
+    {"MU", "🇲🇺", "Mauricienne"},
+    {"MR", "🇲🇷", "Mauritanienne"},
+    {"MX", "🇲🇽", "Mexicaine"},
+    {"MD", "🇲🇩", "Moldave"},
+    {"MC", "🇲🇨", "Monégasque"},
+    {"MN", "🇲🇳", "Mongole"},
+    {"ME", "🇲🇪", "Monténégrine"},
+    {"MZ", "🇲🇿", "Mozambicaine"},
+    {"NA", "🇳🇦", "Namibienne"},
+    {"NR", "🇳🇷", "Nauruane"},
+    {"NP", "🇳🇵", "Népalaise"},
+    {"NI", "🇳🇮", "Nicaraguayenne"},
+    {"NE", "🇳🇪", "Nigérienne"},
+    {"NG", "🇳🇬", "Nigériane"},
+    {"NO", "🇳🇴", "Norvégienne"},
+    {"NZ", "🇳🇿", "Néo-Zélandaise"},
+    {"OM", "🇴🇲", "Omanaise"},
+    {"UG", "🇺🇬", "Ougandaise"},
+    {"UZ", "🇺🇿", "Ouzbèke"},
+    {"PK", "🇵🇰", "Pakistanaise"},
+    {"PW", "🇵🇼", "Palaosienne"},
+    {"PS", "🇵🇸", "Palestinienne"},
+    {"PA", "🇵🇦", "Panaméenne"},
+    {"PG", "🇵🇬", "Papouane-Néo-Guinéenne"},
+    {"PY", "🇵🇾", "Paraguayenne"},
+    {"NL", "🇳🇱", "Néerlandaise"},
+    {"PE", "🇵🇪", "Péruvienne"},
+    {"PH", "🇵🇭", "Philippine"},
+    {"PL", "🇵🇱", "Polonaise"},
+    {"PT", "🇵🇹", "Portugaise"},
+    {"QA", "🇶🇦", "Qatarienne"},
+    {"RO", "🇷🇴", "Roumaine"},
+    {"GB", "🇬🇧", "Britannique"},
+    {"RU", "🇷🇺", "Russe"},
+    {"RW", "🇷🇼", "Rwandaise"},
+    {"KN", "🇰🇳", "Saint-Kittsienne"},
+    {"LC", "🇱🇨", "Saint-Lucienne"},
+    {"VC", "🇻🇨", "Vincentaise"},
+    {"SB", "🇸🇧", "Salomonaise"},
+    {"WS", "🇼🇸", "Samoane"},
+    {"ST", "🇸🇹", "Santoméenne"},
+    {"SN", "🇸🇳", "Sénégalaise"},
+    {"RS", "🇷🇸", "Serbe"},
+    {"SC", "🇸🇨", "Seychelloise"},
+    {"SL", "🇸🇱", "Sierra-Léonaise"},
+    {"SG", "🇸🇬", "Singapourienne"},
+    {"SK", "🇸🇰", "Slovaque"},
+    {"SI", "🇸🇮", "Slovène"},
+    {"SO", "🇸🇴", "Somalienne"},
+    {"SD", "🇸🇩", "Soudanaise"},
+    {"SS", "🇸🇸", "Sud-Soudanaise"},
+    {"LK", "🇱🇰", "Sri-Lankaise"},
+    {"SE", "🇸🇪", "Suédoise"},
+    {"CH", "🇨🇭", "Suisse"},
+    {"SR", "🇸🇷", "Surinamaise"},
+    {"SY", "🇸🇾", "Syrienne"},
+    {"TJ", "🇹🇯", "Tadjike"},
+    {"TZ", "🇹🇿", "Tanzanienne"},
+    {"TD", "🇹🇩", "Tchadienne"},
+    {"CZ", "🇨🇿", "Tchèque"},
+    {"TH", "🇹🇭", "Thaïlandaise"},
+    {"TL", "🇹🇱", "Timoraise"},
+    {"TG", "🇹🇬", "Togolaise"},
+    {"TO", "🇹🇴", "Tongienne"},
+    {"TT", "🇹🇹", "Trinidadienne"},
+    {"TN", "🇹🇳", "Tunisienne"},
+    {"TM", "🇹🇲", "Turkmène"},
+    {"TR", "🇹🇷", "Turque"},
+    {"TV", "🇹🇻", "Tuvaluane"},
+    {"UA", "🇺🇦", "Ukrainienne"},
+    {"UY", "🇺🇾", "Uruguayenne"},
+    {"US", "🇺🇸", "Américaine"},
+    {"VU", "🇻🇺", "Vanuatuane"},
+    {"VE", "🇻🇪", "Vénézuélienne"},
+    {"VN", "🇻🇳", "Vietnamienne"},
+    {"YE", "🇾🇪", "Yéménite"},
+    {"ZM", "🇿🇲", "Zambienne"},
+    {"ZW", "🇿🇼", "Zimbabwéenne"}
+  ]
+
+  def nationalities, do: @nationalities
+
+  def nationality_flag(code) do
+    case Enum.find(@nationalities, fn {c, _, _} -> c == code end) do
+      {_, flag, _} -> flag
+      _ -> "🏳️"
+    end
+  end
+
+  def nationality_label(code) do
+    case Enum.find(@nationalities, fn {c, _, _} -> c == code end) do
+      {_, _, label} -> label
+      _ -> nil
+    end
+  end
+
   def looking_for_label("any"), do: "Tout le monde"
   def looking_for_label("male"), do: "Hommes"
   def looking_for_label("female"), do: "Femmes"
@@ -84,10 +301,26 @@ defmodule MonApp.Accounts.User do
     |> hash_password()
   end
 
+  @doc "Changeset pour modifier le profil complet"
+  def profile_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:bio, :gender, :birthdate, :looking_for, :location, :nationality, :show_dates_on_profile, :show_posts_on_profile])
+    |> validate_length(:bio, max: 500, message: "500 caractères maximum")
+    |> validate_length(:location, max: 100, message: "100 caractères maximum")
+    |> validate_inclusion(:gender, @genders ++ [nil, ""], message: "choix invalide")
+    |> validate_inclusion(:looking_for, @looking_for_options, message: "choix invalide")
+  end
+
   @doc "Changeset pour mettre à jour l'avatar"
   def avatar_changeset(user, attrs) do
     user
     |> cast(attrs, [:avatar])
+  end
+
+  @doc "Changeset pour planifier/annuler la suppression"
+  def deletion_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:scheduled_deletion_at])
   end
 
   # Hash le password avant insertion

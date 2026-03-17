@@ -113,6 +113,51 @@ defmodule MonApp.Accounts do
     |> Repo.update()
   end
 
+  # ============== PROFILE ==============
+
+  @doc "Met à jour le profil d'un user"
+  def update_profile(%User{} = user, attrs) do
+    user
+    |> User.profile_changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc "Retourne un changeset profil pour les formulaires"
+  def change_profile(%User{} = user, attrs \\ %{}) do
+    User.profile_changeset(user, attrs)
+  end
+
+  # ============== ACCOUNT DELETION ==============
+
+  @deletion_delay_days 30
+
+  @doc "Planifie la suppression du compte dans 30 jours"
+  def schedule_deletion(%User{} = user) do
+    deletion_date = NaiveDateTime.utc_now() |> NaiveDateTime.add(@deletion_delay_days * 24 * 3600)
+
+    user
+    |> User.deletion_changeset(%{scheduled_deletion_at: deletion_date})
+    |> Repo.update()
+  end
+
+  @doc "Annule la suppression planifiée"
+  def cancel_deletion(%User{} = user) do
+    user
+    |> User.deletion_changeset(%{scheduled_deletion_at: nil})
+    |> Repo.update()
+  end
+
+  @doc "Vérifie si un compte est en cours de suppression"
+  def deletion_scheduled?(%User{scheduled_deletion_at: nil}), do: false
+  def deletion_scheduled?(%User{}), do: true
+
+  @doc "Jours restants avant suppression"
+  def days_until_deletion(%User{scheduled_deletion_at: nil}), do: nil
+  def days_until_deletion(%User{scheduled_deletion_at: date}) do
+    diff = NaiveDateTime.diff(date, NaiveDateTime.utc_now(), :second)
+    max(0, div(diff, 86400))
+  end
+
   # ============== HELPERS ==============
 
   @doc "Retourne un changeset vide pour les formulaires"

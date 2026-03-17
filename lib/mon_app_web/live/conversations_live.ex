@@ -9,6 +9,8 @@ defmodule MonAppWeb.ConversationsLive do
 
   import MonAppWeb.Navbar
   import MonAppWeb.ChatComponents
+  import MonAppWeb.Toast, only: [toast_popup: 1]
+  alias MonAppWeb.ToastHandler
 
   @impl true
   def mount(_params, _session, socket) do
@@ -63,7 +65,8 @@ defmodule MonAppWeb.ConversationsLive do
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 5,
        max_file_size: 10_000_000
-     )}
+     )
+     |> ToastHandler.init_toast()}
   end
 
   @impl true
@@ -73,6 +76,7 @@ defmodule MonAppWeb.ConversationsLive do
       <!-- Navbar cachée sur mobile quand le chat est ouvert -->
       <div class={@active_conversation && "hidden md:block"}>
         <.navbar current_user={@current_user} current_path="/conversations" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
+        <.toast_popup toast={@toast} />
       </div>
 
       <main class="max-w-2xl mx-auto pb-20 md:pb-0">
@@ -672,6 +676,14 @@ defmodule MonAppWeb.ConversationsLive do
     end
   end
 
+  # ============== TOAST EVENTS ==============
+
+  @impl true
+  def handle_event("dismiss_toast", _, socket) do
+    Process.send_after(self(), :clear_toast, 300)
+    {:noreply, ToastHandler.dismiss_toast(socket)}
+  end
+
   # ============== NOTIFICATION EVENTS ==============
 
   @impl true
@@ -799,6 +811,19 @@ defmodule MonAppWeb.ConversationsLive do
          |> push_event("scroll_to_bottom", %{})}
       end
     else
+      # Message is NOT for the active conversation - show toast
+      socket =
+        if message.sender_id != user.id do
+          sender = MonApp.Accounts.get_user(message.sender_id)
+          if sender do
+            ToastHandler.show_message_toast(socket, message, sender.name, sender.avatar)
+          else
+            socket
+          end
+        else
+          socket
+        end
+
       {:noreply, socket}
     end
   end
@@ -944,7 +969,18 @@ defmodule MonAppWeb.ConversationsLive do
     {:noreply,
      socket
      |> assign(:notifications, notifications)
-     |> assign(:unread_notifications_count, unread_count)}
+     |> assign(:unread_notifications_count, unread_count)
+     |> ToastHandler.show_notification_toast(notification)}
+  end
+
+  @impl true
+  def handle_info(:auto_dismiss_toast, socket) do
+    {:noreply, ToastHandler.dismiss_toast(socket)}
+  end
+
+  @impl true
+  def handle_info(:clear_toast, socket) do
+    {:noreply, ToastHandler.clear_toast(socket)}
   end
 
   @impl true

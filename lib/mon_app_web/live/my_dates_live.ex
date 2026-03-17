@@ -10,6 +10,8 @@ defmodule MonAppWeb.MyDatesLive do
 
   import MonAppWeb.Navbar
   import MonAppWeb.PostComponents
+  import MonAppWeb.Toast, only: [toast_popup: 1]
+  alias MonAppWeb.ToastHandler
 
   @topic "posts"
 
@@ -57,7 +59,8 @@ defmodule MonAppWeb.MyDatesLive do
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 4,
        max_file_size: 10_000_000
-     )}
+     )
+     |> ToastHandler.init_toast()}
   end
 
   # ============== RENDER ==============
@@ -74,6 +77,7 @@ defmodule MonAppWeb.MyDatesLive do
       notifications={@notifications}
       unread_notifications_count={@unread_notifications_count}
     />
+    <.toast_popup toast={@toast} />
 
     <div class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
       <!-- Header -->
@@ -391,6 +395,14 @@ defmodule MonAppWeb.MyDatesLive do
     end
   end
 
+  # --- Toast ---
+
+  @impl true
+  def handle_event("dismiss_toast", _, socket) do
+    Process.send_after(self(), :clear_toast, 300)
+    {:noreply, ToastHandler.dismiss_toast(socket)}
+  end
+
   # --- Notifications ---
 
   @impl true
@@ -441,13 +453,42 @@ defmodule MonAppWeb.MyDatesLive do
   def handle_info({:new_notification, notification}, socket) do
     notifications = [notification | socket.assigns.notifications]
     unread_count = socket.assigns.unread_notifications_count + 1
-    {:noreply, socket |> assign(:notifications, notifications) |> assign(:unread_notifications_count, unread_count)}
+    {:noreply,
+     socket
+     |> assign(:notifications, notifications)
+     |> assign(:unread_notifications_count, unread_count)
+     |> ToastHandler.show_notification_toast(notification)}
   end
 
   @impl true
-  def handle_info({:new_message, _}, socket) do
-    unread = Chat.count_total_unread(socket.assigns.current_user.id)
+  def handle_info({:new_message, message}, socket) do
+    user_id = socket.assigns.current_user.id
+    unread = Chat.count_total_unread(user_id)
+
+    # Toast for new message (not from self)
+    socket =
+      if message.sender_id != user_id do
+        sender = MonApp.Accounts.get_user(message.sender_id)
+        if sender do
+          ToastHandler.show_message_toast(socket, message, sender.name, sender.avatar)
+        else
+          socket
+        end
+      else
+        socket
+      end
+
     {:noreply, assign(socket, :unread_messages_count, unread)}
+  end
+
+  @impl true
+  def handle_info(:auto_dismiss_toast, socket) do
+    {:noreply, ToastHandler.dismiss_toast(socket)}
+  end
+
+  @impl true
+  def handle_info(:clear_toast, socket) do
+    {:noreply, ToastHandler.clear_toast(socket)}
   end
 
   @impl true
