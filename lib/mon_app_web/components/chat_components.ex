@@ -416,19 +416,18 @@ defmodule MonAppWeb.ChatComponents do
                 {@reply_to.body || "📷 Photo"}
               </p>
             </div>
-            <!-- Message de réponse (collé en dessous) avec heure intégrée -->
+            <!-- Message de réponse (collé en dessous) -->
             <div :if={@has_body} class={
-              "px-3 pt-2 pb-1 " <>
+              "px-2.5 py-1.5 " <>
               if @is_mine do
                 "bg-primary text-primary-content"
               else
                 "bg-base-200 text-base-content"
               end
             }>
-              <p class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</p>
-              <!-- Heure et statut intégrés -->
-              <div class={"flex items-center gap-1 justify-end mt-1 " <>
-                if @is_mine, do: "text-primary-content/60", else: "text-base-content/50"}>
+              <span class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</span>
+              <span class={"inline-flex items-center gap-0.5 ml-2 align-bottom translate-y-[1px] " <>
+                if @is_mine, do: "text-primary-content/50", else: "text-base-content/40"}>
                 <span
                   id={"msg-time-#{@message.id}"}
                   phx-hook="LocalTime"
@@ -440,7 +439,7 @@ defmodule MonAppWeb.ChatComponents do
                 <span :if={@is_mine} class="text-[10px]">
                   {Message.status_icon(@message.status)}
                 </span>
-              </div>
+              </span>
             </div>
           </div>
 
@@ -484,36 +483,35 @@ defmodule MonAppWeb.ChatComponents do
                 </div>
                 <!-- Texte avec heure intégrée -->
                 <div class={
-                  "px-3 pt-1 pb-1 " <>
+                  "px-2.5 py-1.5 " <>
                   if @is_mine, do: "text-primary-content", else: "text-base-content"
                 }>
-                  <p class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</p>
-                  <div class={"flex items-center gap-1 justify-end mt-1 " <>
-                    if @is_mine, do: "text-primary-content/60", else: "text-base-content/50"}>
+                  <span class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</span>
+                  <span class={"inline-flex items-center gap-0.5 ml-2 align-bottom translate-y-[1px] " <>
+                    if @is_mine, do: "text-primary-content/50", else: "text-base-content/40"}>
                     <span id={"msg-time-#{@message.id}"} phx-hook="LocalTime" data-time={NaiveDateTime.to_iso8601(@message.inserted_at)} class="text-[10px]">
                       {format_message_time(@message.inserted_at)}
                     </span>
                     <span :if={@is_mine} class="text-[10px]">
                       {Message.status_icon(@message.status)}
                     </span>
-                  </div>
+                  </span>
                 </div>
               </div>
             </div>
 
-            <!-- Bulle du message texte seulement (heure intégrée style WhatsApp) -->
+            <!-- Bulle du message texte seulement (style WhatsApp) -->
             <div :if={@has_body && !@has_attachments} class={
-              "inline-block px-3 pt-2 pb-1 rounded-2xl " <>
+              "inline-block px-2.5 py-1.5 rounded-2xl " <>
               if @is_mine do
                 "bg-primary text-primary-content rounded-br-md"
               else
                 "bg-base-200 text-base-content rounded-bl-md"
               end
             }>
-              <p class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</p>
-              <!-- Heure et statut intégrés en bas à droite -->
-              <div class={"flex items-center gap-1 justify-end mt-1 " <>
-                if @is_mine, do: "text-primary-content/60", else: "text-base-content/50"}>
+              <span class="text-[15px] whitespace-pre-wrap break-words">{@message.body}</span>
+              <span class={"inline-flex items-center gap-0.5 ml-2 align-bottom translate-y-[1px] " <>
+                if @is_mine, do: "text-primary-content/50", else: "text-base-content/40"}>
                 <span
                   id={"msg-time-#{@message.id}"}
                   phx-hook="LocalTime"
@@ -525,7 +523,7 @@ defmodule MonAppWeb.ChatComponents do
                 <span :if={@is_mine} class="text-[10px]">
                   {Message.status_icon(@message.status)}
                 </span>
-              </div>
+              </span>
             </div>
           <% end %>
 
