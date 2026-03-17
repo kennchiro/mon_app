@@ -24,7 +24,8 @@ defmodule MonAppWeb.Toast do
     ~H"""
     <div
       :if={@toast}
-      class={"fixed z-[100] top-2 left-2 right-2 md:top-4 md:left-auto md:right-4 md:w-96 #{if @toast[:exiting], do: "toast-exit", else: "toast-enter"}"}
+      class={"fixed z-[100] left-2 right-2 md:left-auto md:right-4 md:w-96 #{if @toast[:exiting], do: "toast-exit", else: "toast-enter"}"}
+      style={"top: calc(0.5rem + env(safe-area-inset-top, 0px))"}
     >
       <a
         href={@toast.href}

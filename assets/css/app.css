@@ -202,6 +202,7 @@ html, body {
   max-width: 100vw;
 }
 
+
 /* PWA safe areas for iOS standalone mode */
 @supports (padding-top: env(safe-area-inset-top)) {
   body {

@@ -322,7 +322,7 @@ defmodule MonAppWeb.ChatComponents do
       data-is-mine={@is_mine}
     >
       <!-- Row principale: Avatar + Bulle + Actions alignés -->
-      <div class={"flex items-end gap-2 " <> if @is_mine, do: "flex-row-reverse", else: ""}>
+      <div class={"flex items-end gap-2 w-full " <> if @is_mine, do: "flex-row-reverse", else: ""}>
         <!-- Actions à droite de la bulle pour les messages des autres (apparaissent au hover) -->
         <div :if={!@is_deleted && !@is_mine} class="hidden md:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity self-center order-last">
           <button
@@ -354,7 +354,7 @@ defmodule MonAppWeb.ChatComponents do
           <.user_avatar name={@message.sender.name} avatar={@message.sender.avatar} size="w-7 h-7" text_size="text-[10px]" />
         </a>
 
-        <div class="max-w-[70%]">
+        <div class="max-w-[80%] sm:max-w-md">
           <!-- Nom de l'expéditeur pour les groupes -->
           <a :if={@is_group && !@is_mine && !@is_deleted} href={~p"/profile/#{@message.sender_id}"} class="text-xs text-base-content/60 mb-0.5 ml-1 hover:underline block">
             {@message.sender.name}
@@ -471,7 +471,7 @@ defmodule MonAppWeb.ChatComponents do
             <!-- Images avec texte -->
             <div :if={@has_attachments && @has_body} class={if @is_mine, do: "text-right", else: "text-left"}>
               <div class={
-                "inline-block rounded-2xl overflow-hidden max-w-xs " <>
+                "inline-block rounded-2xl overflow-hidden " <>
                 if @is_mine, do: "bg-primary rounded-br-md", else: "bg-base-200 rounded-bl-md"
               }>
                 <div class="p-1">
@@ -1369,7 +1369,7 @@ defmodule MonAppWeb.ChatComponents do
 
         <!-- Messages -->
         <div
-          class="flex-1 overflow-y-auto bg-base-200/30 overscroll-contain"
+          class="flex-1 overflow-y-auto overflow-x-hidden bg-base-200/30 overscroll-contain"
           id="sheet-messages-container"
           phx-hook="ScrollToBottom"
           phx-click="close_reaction_picker"

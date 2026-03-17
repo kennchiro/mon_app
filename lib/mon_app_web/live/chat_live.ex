@@ -76,7 +76,7 @@ defmodule MonAppWeb.ChatLive do
 
       <!-- Messages -->
       <div
-        class="flex-1 overflow-y-auto bg-base-200/30"
+        class="flex-1 overflow-y-auto overflow-x-hidden bg-base-200/30"
         id="messages-container"
         phx-hook="ScrollToBottom"
       >
