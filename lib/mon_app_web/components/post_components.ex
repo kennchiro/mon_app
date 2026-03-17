@@ -29,21 +29,21 @@ defmodule MonAppWeb.PostComponents do
 
       <!-- Row 2: Two equal buttons -->
       <div class="flex">
+        <!-- Date button -->
+        <button type="button" phx-click="open_date_modal" class="flex-1 py-2.5 flex items-center justify-center gap-2 text-[13px] font-semibold text-base-content/60 hover:bg-transparent transition-all group">
+          <span class="text-lg group-hover:scale-110 transition-transform">💘</span>
+          <span class="bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent font-bold">Proposer un Date</span>
+        </button>
+
+        <!-- Divider vertical -->
+        <div class="w-px bg-base-200"></div>
+
         <!-- Post button -->
         <button type="button" phx-click="open_post_modal" class="flex-1 py-2.5 flex items-center justify-center gap-2 text-[13px] font-semibold text-base-content/60 hover:bg-base-200 transition-colors">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
           </svg>
           <span>Publication</span>
-        </button>
-
-        <!-- Divider vertical -->
-        <div class="w-px bg-base-200"></div>
-
-        <!-- Date button -->
-        <button type="button" phx-click="open_date_modal" class="flex-1 py-2.5 flex items-center justify-center gap-2 text-[13px] font-semibold text-base-content/60 hover:bg-transparent transition-all group">
-          <span class="text-lg group-hover:scale-110 transition-transform">💘</span>
-          <span class="bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent font-bold">Proposer un Date</span>
         </button>
       </div>
     </div>
@@ -1290,17 +1290,17 @@ defmodule MonAppWeb.PostComponents do
         <div class="flex gap-1 bg-base-200 rounded-lg p-1">
           <button
             phx-click="filter_feed"
-            phx-value-filter="standard"
-            class={"flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all #{if @feed_filter == "standard", do: "bg-base-100 shadow-sm text-base-content", else: "text-base-content/50 hover:text-base-content"}"}
-          >
-            Posts
-          </button>
-          <button
-            phx-click="filter_feed"
             phx-value-filter="date"
             class={"flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all #{if @feed_filter == "date", do: "bg-base-100 shadow-sm text-pink-500", else: "text-base-content/50 hover:text-base-content"}"}
           >
             💘 Dates
+          </button>
+          <button
+            phx-click="filter_feed"
+            phx-value-filter="standard"
+            class={"flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-all #{if @feed_filter == "standard", do: "bg-base-100 shadow-sm text-base-content", else: "text-base-content/50 hover:text-base-content"}"}
+          >
+            Posts
           </button>
         </div>
       </div>
@@ -1989,40 +1989,41 @@ defmodule MonAppWeb.PostComponents do
 
   def date_form_modal(assigns) do
     ~H"""
-    <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center md:p-4">
       <div
-        class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+        class="bg-base-100 w-full md:rounded-2xl md:shadow-2xl md:max-w-lg h-full md:h-auto md:max-h-[90vh] flex flex-col overflow-hidden"
         phx-click-away="close_date_modal"
       >
-        <!-- Header gradient -->
-        <div class="bg-gradient-to-r from-pink-500 via-rose-500 to-red-400 rounded-t-2xl p-4 flex items-center justify-between">
-          <div></div>
-          <h3 class="text-xl font-bold text-white flex items-center gap-2">
-            <span>💘</span> {if @editing_post, do: "Modifier le Date", else: "Proposer un Date"}
-          </h3>
-          <button type="button" phx-click="close_date_modal" class="btn btn-ghost btn-sm btn-circle text-white hover:bg-white/20">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <!-- Header -->
+        <div class="safe-area-top md:rounded-t-2xl">
+          <div class="h-14 px-4 border-b border-base-200 flex items-center relative">
+            <button type="button" phx-click="close_date_modal" class="w-8 h-8 rounded-full bg-base-200 flex items-center justify-center hover:bg-base-300 transition-colors z-10">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 class="text-lg font-bold text-base-content absolute inset-0 flex items-center justify-center pointer-events-none">
+              {if @editing_post, do: "Modifier le Date", else: "Proposer un Date"}
+            </h3>
+          </div>
         </div>
 
         <!-- Body -->
         <.form for={@form} phx-submit={if @editing_post, do: "update_date", else: "save_date"} phx-change="validate_date" class="flex flex-col flex-1 overflow-hidden">
           <input :if={@editing_post} type="hidden" name="date[id]" value={@editing_post.id} />
-          <div class="p-5 flex-1 overflow-y-auto space-y-5">
+          <div class="p-4 pt-5 sm:p-5 sm:pt-6 flex-1 overflow-y-auto overflow-x-hidden space-y-5">
             <!-- User info + Visibility -->
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
+            <div class="flex items-center justify-between gap-2 min-w-0">
+              <div class="flex items-center gap-3 min-w-0 flex-1">
                 <.user_avatar name={@current_user.name} avatar={@current_user.avatar} />
-                <div>
-                  <div class="font-semibold">{@current_user.name}</div>
-                  <div class="text-xs bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent font-medium">{if @editing_post, do: "Modifier le date ✏️", else: "Nouveau date 💘"}</div>
+                <div class="min-w-0">
+                  <div class="font-semibold truncate">{@current_user.name}</div>
+                  <div class="text-xs text-base-content/50 font-medium">{if @editing_post, do: "Modifier le date", else: "Nouveau date"}</div>
                 </div>
               </div>
-              <select name="date[visibility]" class="px-3 py-1.5 bg-base-200/50 border border-base-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
-                <option value="public" selected={(@form[:visibility].value || "public") == "public"}>🌍 Public</option>
-                <option value="friends" selected={@form[:visibility].value == "friends"}>👥 Amis</option>
+              <select name="date[visibility]" class="shrink-0 px-3 py-1.5 bg-base-200/50 border border-base-300 rounded-lg text-sm focus:outline-none focus:border-base-content/30 transition-all appearance-none">
+                <option value="public" selected={(@form[:visibility].value || "public") == "public"}>Public</option>
+                <option value="friends" selected={@form[:visibility].value == "friends"}>Amis</option>
               </select>
             </div>
 
@@ -2033,19 +2034,19 @@ defmodule MonAppWeb.PostComponents do
                 type="text"
                 name="date[date_title]"
                 value={@form[:date_title].value}
-                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all"
                 placeholder="Ex: Resto japonais ce soir !"
                 phx-debounce="300"
               />
             </div>
 
             <!-- Category -->
-            <div>
+            <div class="min-w-0">
               <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Catégorie *</label>
-              <div class="flex flex-wrap gap-1.5">
+              <div class="flex flex-wrap gap-1.5 max-w-full">
                 <label
                   :for={cat <- MonApp.Blog.Post.date_categories()}
-                  class={"inline-flex items-center gap-1 px-3 py-1.5 rounded-full border cursor-pointer transition-all text-sm #{if @form[:date_category].value == cat, do: "border-pink-500 bg-pink-500/10 text-pink-600 font-semibold shadow-sm", else: "border-base-300/50 hover:border-pink-400/50 bg-base-200/30 text-base-content/70"}"}
+                  class={"inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border cursor-pointer transition-all text-xs sm:text-sm #{if @form[:date_category].value == cat, do: "border-base-content bg-base-content/10 text-base-content font-semibold", else: "border-base-300/50 hover:border-base-content/30 bg-base-200/30 text-base-content/70"}"}
                 >
                   <input type="radio" name="date[date_category]" value={cat} checked={@form[:date_category].value == cat} class="hidden" />
                   <span>{MonApp.Blog.Post.date_category_emoji(cat)}</span>
@@ -2054,52 +2055,52 @@ defmodule MonAppWeb.PostComponents do
               </div>
             </div>
 
-            <!-- Location -->
-            <div>
-              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Lieu (optionnel)</label>
-              <div class="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <input
-                  type="text"
-                  name="date[date_location]"
-                  value={@form[:date_location].value}
-                  class="w-full pl-11 pr-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
-                  placeholder="Ex: Paris 11e, Le Petit Tokyo"
-                  phx-debounce="300"
-                />
+            <!-- Location & Date/Time -->
+            <div class="flex flex-col sm:flex-row gap-3 min-w-0">
+              <div class="min-w-0 flex-1">
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Lieu</label>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    name="date[date_location]"
+                    value={@form[:date_location].value}
+                    class="w-full pl-10 pr-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all"
+                    placeholder="Paris 11e..."
+                    phx-debounce="300"
+                  />
+                </div>
               </div>
-            </div>
-
-            <!-- Date & Time -->
-            <div>
-              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Quand ? *</label>
-              <div class="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <input
-                  type="datetime-local"
-                  name="date[date_datetime]"
-                  value={format_datetime_local(@form[:date_datetime].value)}
-                  class="w-full pl-11 pr-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
-                />
+              <div class="min-w-0 sm:w-[200px] sm:shrink-0">
+                <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Quand ? *</label>
+                <div class="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/30 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <input
+                    type="datetime-local"
+                    name="date[date_datetime]"
+                    value={format_datetime_local(@form[:date_datetime].value)}
+                    class="w-full pl-10 pr-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm focus:outline-none focus:border-base-content/30 transition-all"
+                  />
+                </div>
               </div>
             </div>
 
             <!-- Budget & Spots -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
+            <div class="grid grid-cols-2 gap-3 min-w-0">
+              <div class="min-w-0">
                 <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Budget</label>
-                <select name="date[date_budget]" class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
+                <select name="date[date_budget]" class="w-full px-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm focus:outline-none focus:border-base-content/30 transition-all appearance-none">
                   <option :for={b <- MonApp.Blog.Post.date_budgets()} value={b} selected={@form[:date_budget].value == b}>
                     {MonApp.Blog.Post.date_budget_label(b)}
                   </option>
                 </select>
               </div>
-              <div>
+              <div class="min-w-0">
                 <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Places</label>
                 <input
                   type="number"
@@ -2107,7 +2108,7 @@ defmodule MonAppWeb.PostComponents do
                   value={@form[:date_spots].value || 1}
                   min="1"
                   max="20"
-                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                  class="w-full px-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm focus:outline-none focus:border-base-content/30 transition-all"
                 />
               </div>
             </div>
@@ -2115,7 +2116,7 @@ defmodule MonAppWeb.PostComponents do
             <!-- Gender preference -->
             <div>
               <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Ouvert à</label>
-              <select name="date[date_gender_pref]" class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all appearance-none">
+              <select name="date[date_gender_pref]" class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base focus:outline-none focus:border-base-content/30 transition-all appearance-none">
                 <option :for={g <- MonApp.Blog.Post.date_gender_prefs()} value={g} selected={@form[:date_gender_pref].value == g}>
                   {MonApp.Blog.Post.date_gender_pref_label(g)}
                 </option>
@@ -2123,8 +2124,8 @@ defmodule MonAppWeb.PostComponents do
             </div>
 
             <!-- Age range -->
-            <div class="grid grid-cols-2 gap-3">
-              <div>
+            <div class="grid grid-cols-2 gap-3 min-w-0">
+              <div class="min-w-0">
                 <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Âge min</label>
                 <input
                   type="number"
@@ -2133,10 +2134,10 @@ defmodule MonAppWeb.PostComponents do
                   min="18"
                   max="99"
                   placeholder="18"
-                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                  class="w-full px-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all"
                 />
               </div>
-              <div>
+              <div class="min-w-0">
                 <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Âge max</label>
                 <input
                   type="number"
@@ -2145,7 +2146,7 @@ defmodule MonAppWeb.PostComponents do
                   min="18"
                   max="99"
                   placeholder="99"
-                  class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all"
+                  class="w-full px-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all"
                 />
               </div>
             </div>
@@ -2155,7 +2156,7 @@ defmodule MonAppWeb.PostComponents do
               <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Description (optionnel)</label>
               <textarea
                 name="date[body]"
-                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all resize-none min-h-[80px]"
+                class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-base placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all resize-none min-h-[80px]"
                 placeholder="Décris ton date idéal..."
                 phx-debounce="300"
               >{@form[:body].value}</textarea>
@@ -2163,37 +2164,72 @@ defmodule MonAppWeb.PostComponents do
 
             <!-- Photo upload -->
             <div>
-              <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Photo (optionnel)</label>
-              <div class="flex items-center gap-3">
-                <!-- Image previews -->
-                <div :if={@uploads.date_images.entries != []} class="flex gap-2 flex-wrap">
-                  <div :for={entry <- @uploads.date_images.entries} class="relative group w-20 h-20">
-                    <.live_img_preview entry={entry} class="w-full h-full object-cover rounded-xl" />
-                    <button
-                      type="button"
-                      phx-click="cancel-date-upload"
-                      phx-value-ref={entry.ref}
-                      class="absolute -top-1.5 -right-1.5 btn btn-circle btn-xs bg-base-100 border border-base-300 shadow-sm hover:bg-error hover:text-white hover:border-error"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
+              <span class="text-sm font-medium text-base-content/70 mb-1.5 block">Photo (optionnel)</span>
+
+              <%
+                existing_images = if @editing_post && @editing_post.images, do: @editing_post.images, else: []
+                new_entries = @uploads.date_images.entries
+                has_any = existing_images != [] || new_entries != []
+                total_count = length(existing_images) + length(new_entries)
+              %>
+
+              <div :if={has_any} class="flex gap-2 flex-wrap mb-3">
+                <!-- Existing images (from DB) -->
+                <div :for={img <- existing_images} class="relative group w-20 h-20">
+                  <img src={"/uploads/posts/#{img.filename}"} class="w-full h-full object-cover rounded-xl" />
+                  <button
+                    type="button"
+                    phx-click="remove_date_image"
+                    phx-value-id={img.id}
+                    class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-100 border border-base-300 shadow-sm flex items-center justify-center hover:bg-error hover:text-white hover:border-error transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-                <!-- Upload button -->
+
+                <!-- New uploads (preview) -->
+                <div :for={entry <- new_entries} class="relative group w-20 h-20">
+                  <.live_img_preview entry={entry} class="w-full h-full object-cover rounded-xl" />
+                  <button
+                    type="button"
+                    phx-click="cancel-date-upload"
+                    phx-value-ref={entry.ref}
+                    class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-100 border border-base-300 shadow-sm flex items-center justify-center hover:bg-error hover:text-white hover:border-error transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Add more button -->
                 <label
-                  :if={@uploads.date_images.entries == []}
-                  class="flex flex-col items-center justify-center w-full py-6 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-pink-400 hover:bg-pink-500/5 transition-all group"
+                  :if={total_count < 4}
+                  class="w-20 h-20 border-2 border-dashed border-base-300 rounded-xl cursor-pointer flex items-center justify-center hover:border-base-content/30 hover:bg-base-200 transition-all"
                   phx-drop-target={@uploads.date_images.ref}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-base-content/30 group-hover:text-pink-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-base-content/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                   </svg>
-                  <span class="text-xs text-base-content/40 mt-1.5 group-hover:text-pink-400 transition-colors">Ajouter une photo</span>
                   <.live_file_input upload={@uploads.date_images} class="hidden" />
                 </label>
               </div>
+
+              <!-- Empty state upload -->
+              <label
+                :if={!has_any}
+                class="flex flex-col items-center justify-center w-full py-6 border-2 border-dashed border-base-300 rounded-xl cursor-pointer hover:border-base-content/30 hover:bg-base-200 transition-all group"
+                phx-drop-target={@uploads.date_images.ref}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-base-content/30 group-hover:text-base-content/50 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-xs text-base-content/40 mt-1.5">Ajouter une photo</span>
+                <.live_file_input upload={@uploads.date_images} class="hidden" />
+              </label>
+
               <div :for={err <- upload_errors(@uploads.date_images)} class="text-error text-xs mt-1">
                 {upload_error_to_string(err)}
               </div>
@@ -2202,9 +2238,9 @@ defmodule MonAppWeb.PostComponents do
           </div>
 
           <!-- Footer -->
-          <div class="p-4 border-t border-base-200">
-            <button type="submit" class="btn w-full gap-2 border-0 text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 rounded-xl shadow-lg shadow-pink-500/20">
-              <span>💘</span> {if @editing_post, do: "Enregistrer les modifications", else: "Publier le date"}
+          <div class="p-4 border-t border-base-200 safe-area-bottom">
+            <button type="submit" class="btn w-full border-0 bg-base-content text-base-100 hover:bg-pink-500 hover:text-white rounded-xl transition-all duration-300">
+              {if @editing_post, do: "Enregistrer les modifications", else: "Publier le date"}
             </button>
           </div>
         </.form>
@@ -2509,7 +2545,7 @@ defmodule MonAppWeb.PostComponents do
             <label class="text-sm font-medium text-base-content/70 mb-1.5 block">Un petit message ? (optionnel)</label>
             <textarea
               name="message"
-              class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500 transition-all resize-none"
+              class="w-full px-4 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm placeholder:text-base-content/40 focus:outline-none focus:border-base-content/30 transition-all resize-none"
               placeholder="Salut ! Je suis partant(e), j'adore la cuisine japonaise..."
               maxlength="500"
               rows="3"

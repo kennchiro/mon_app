@@ -35,7 +35,7 @@ defmodule MonAppWeb.PostsLive do
       Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
-    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1, 20, post_type: "standard")
+    {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1, 20, post_type: "date")
     pending_count = length(Social.list_pending_requests(user_id))
     unread_messages_count = Chat.count_total_unread(user_id)
 
@@ -64,7 +64,7 @@ defmodule MonAppWeb.PostsLive do
      |> assign(:preview_image, nil)
      |> assign(:sharing_post, nil)
      |> assign(:share_form, to_form(%{"visibility" => "public"}))
-     |> assign(:feed_filter, "standard")
+     |> assign(:feed_filter, "date")
      |> assign(:show_date_modal, false)
      |> assign(:editing_date, nil)
      |> assign(:date_form, to_form(Blog.change_date_post(%Post{})))
@@ -123,10 +123,10 @@ defmodule MonAppWeb.PostsLive do
     assigns = assign(assigns, :modal_open?, modal_open?)
 
     ~H"""
-    <div class={"min-h-screen bg-base-200 #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
+    <div class={"min-h-screen bg-base-200 overflow-x-hidden #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
       <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
-      <main class="max-w-2xl mx-auto p-4 sm:p-6">
+      <main class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
         <.post_form_trigger current_user={@current_user} />
         <.post_form_modal
           :if={@show_post_modal}
@@ -1447,6 +1447,18 @@ defmodule MonAppWeb.PostsLive do
   @impl true
   def handle_event("cancel-date-upload", %{"ref" => ref}, socket) do
     {:noreply, cancel_upload(socket, :date_images, ref)}
+  end
+
+  @impl true
+  def handle_event("remove_date_image", %{"id" => id}, socket) do
+    image = Blog.get_post_image(String.to_integer(id))
+    if image, do: Blog.delete_post_image(image)
+
+    # Refresh the editing post to reflect removed image
+    editing = socket.assigns.editing_date
+    updated_post = if editing, do: Blog.get_post_with_comments(editing.id), else: nil
+
+    {:noreply, assign(socket, :editing_date, updated_post)}
   end
 
   # ============== EDIT / DELETE DATE ==============

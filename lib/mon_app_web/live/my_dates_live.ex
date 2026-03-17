@@ -65,7 +65,7 @@ defmodule MonAppWeb.MyDatesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-200">
+    <div class="min-h-screen bg-base-200 overflow-x-hidden">
     <.navbar
       current_user={@current_user}
       current_path="/my-dates"
@@ -75,7 +75,7 @@ defmodule MonAppWeb.MyDatesLive do
       unread_notifications_count={@unread_notifications_count}
     />
 
-    <div class="max-w-2xl mx-auto p-4 sm:p-6">
+    <div class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <h1 class="text-2xl font-bold">Mes Dates</h1>
@@ -275,6 +275,22 @@ defmodule MonAppWeb.MyDatesLive do
     else
       {:noreply, put_flash(socket, :error, "Non autorisé")}
     end
+  end
+
+  @impl true
+  def handle_event("cancel-date-upload", %{"ref" => ref}, socket) do
+    {:noreply, cancel_upload(socket, :date_images, ref)}
+  end
+
+  @impl true
+  def handle_event("remove_date_image", %{"id" => id}, socket) do
+    image = Blog.get_post_image(String.to_integer(id))
+    if image, do: Blog.delete_post_image(image)
+
+    editing = socket.assigns.editing_date
+    updated_post = if editing, do: Blog.get_post_with_comments(editing.id), else: nil
+
+    {:noreply, assign(socket, :editing_date, updated_post)}
   end
 
   # --- Applications ---

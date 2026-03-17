@@ -52,6 +52,7 @@ defmodule MonAppWeb.Router do
     pipe_through :browser
 
     get "/login-session", SessionController, :create
+    post "/login-session", SessionController, :create
     delete "/logout", SessionController, :delete
   end
 

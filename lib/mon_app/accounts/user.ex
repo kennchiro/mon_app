@@ -35,10 +35,13 @@ defmodule MonApp.Accounts.User do
   def changeset(user, attrs) do
     user
     |> cast(attrs, [:name, :email, :age])
-    |> validate_required([:name, :email])
-    |> validate_format(:email, ~r/@/)
-    |> validate_number(:age, greater_than: 0)
-    |> unique_constraint(:email)
+    |> validate_required([:name, :email], message: "ce champ est requis")
+    |> validate_format(:email, ~r/@/, message: "doit être un email valide")
+    |> validate_length(:name, min: 3, max: 20, message: "doit contenir entre 3 et 20 caractères")
+    |> validate_format(:name, ~r/^[a-zA-Z0-9_]+$/, message: "uniquement lettres, chiffres et _")
+    |> validate_number(:age, greater_than: 0, message: "doit être supérieur à 0")
+    |> unique_constraint(:name, message: "ce pseudo est déjà pris")
+    |> unique_constraint(:email, message: "cet email est déjà utilisé")
   end
 
   @doc "Changeset pour le profil dating"
@@ -47,8 +50,8 @@ defmodule MonApp.Accounts.User do
     |> cast(attrs, [:bio, :gender, :birthdate, :looking_for, :interests, :location])
     |> validate_inclusion(:gender, @genders)
     |> validate_inclusion(:looking_for, @looking_for_options)
-    |> validate_length(:bio, max: 500)
-    |> validate_length(:location, max: 100)
+    |> validate_length(:bio, max: 500, message: "500 caractères maximum")
+    |> validate_length(:location, max: 100, message: "100 caractères maximum")
   end
 
   def genders, do: @genders
@@ -71,10 +74,13 @@ defmodule MonApp.Accounts.User do
   def registration_changeset(user, attrs) do
     user
     |> cast(attrs, [:name, :email, :password])
-    |> validate_required([:name, :email, :password])
-    |> validate_format(:email, ~r/@/)
-    |> validate_length(:password, min: 6, max: 100)
-    |> unique_constraint(:email)
+    |> validate_required([:name, :email, :password], message: "ce champ est requis")
+    |> validate_length(:name, min: 3, max: 20, message: "doit contenir entre 3 et 20 caractères")
+    |> validate_format(:name, ~r/^[a-zA-Z0-9_]+$/, message: "uniquement lettres, chiffres et _")
+    |> validate_format(:email, ~r/@/, message: "doit être un email valide")
+    |> validate_length(:password, min: 6, max: 100, message: "doit contenir au moins 6 caractères")
+    |> unique_constraint(:name, message: "ce pseudo est déjà pris")
+    |> unique_constraint(:email, message: "cet email est déjà utilisé")
     |> hash_password()
   end
 

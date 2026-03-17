@@ -69,13 +69,13 @@ defmodule MonAppWeb.ConversationsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class={["min-h-screen bg-base-200", @active_conversation && "chat-open"]}>
+    <div class={["min-h-screen bg-base-200 overflow-x-hidden", @active_conversation && "chat-open"]}>
       <!-- Navbar cachée sur mobile quand le chat est ouvert -->
       <div class={@active_conversation && "hidden md:block"}>
         <.navbar current_user={@current_user} current_path="/conversations" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
       </div>
 
-      <main class="max-w-2xl mx-auto pb-safe">
+      <main class="max-w-2xl mx-auto pb-20 md:pb-0">
         <!-- Header style Messenger - caché sur mobile quand le chat est ouvert -->
         <div class={["bg-base-200 sticky top-0 z-10", @active_conversation && "hidden md:block"]}>
           <!-- Titre et recherche sur la même ligne -->

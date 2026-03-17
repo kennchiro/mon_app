@@ -89,7 +89,7 @@ defmodule MonAppWeb.PublicProfileLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="min-h-screen bg-base-200">
+    <div class="min-h-screen bg-base-200 overflow-x-hidden">
       <.navbar
         current_user={@current_user}
         current_path={"/profile/#{@profile_user.id}"}
@@ -99,7 +99,7 @@ defmodule MonAppWeb.PublicProfileLive do
         unread_notifications_count={@unread_notifications_count}
       />
 
-      <main class={"max-w-2xl mx-auto p-4 sm:p-6 #{if @viewing_post || @viewing_reactions_post || @viewing_comment_reactions || @preview_image || @sharing_post, do: "overflow-hidden h-screen", else: ""}"}>
+      <main class={"max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6 #{if @viewing_post || @viewing_reactions_post || @viewing_comment_reactions || @preview_image || @sharing_post, do: "overflow-hidden h-screen", else: ""}"}>
         <!-- Post Modals -->
         <.post_detail_modal
           :if={@viewing_post}

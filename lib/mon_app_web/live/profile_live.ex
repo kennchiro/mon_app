@@ -59,10 +59,10 @@ defmodule MonAppWeb.ProfileLive do
       |> assign(:upload_in_progress, upload_in_progress)
 
     ~H"""
-    <div class="min-h-screen bg-base-200">
+    <div class="min-h-screen bg-base-200 overflow-x-hidden">
       <.navbar current_user={@current_user} current_path="/profile" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
 
-      <main class="max-w-2xl mx-auto p-4 sm:p-6">
+      <main class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
         <div class="card bg-base-100 shadow-sm">
           <div class="card-body">
             <!-- Header profil -->
