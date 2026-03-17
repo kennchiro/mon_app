@@ -90,12 +90,22 @@ defmodule MonAppWeb.ConversationsLive do
               <input
                 type="text"
                 placeholder="Rechercher"
-                class="w-full h-9 pl-9 pr-3 text-sm bg-base-100 border border-base-300 rounded-full focus:outline-none focus:ring-2 focus:ring-primary/20"
-                phx-change="search"
+                class="w-full h-9 pl-9 pr-8 text-sm bg-base-100 border border-base-300 rounded-full focus:outline-none focus:border-pink-400 transition-all"
+                phx-keyup="search"
                 phx-debounce="300"
                 name="query"
                 value={@search_query}
               />
+              <button
+                :if={@search_query != ""}
+                type="button"
+                phx-click="clear_search"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/30 hover:text-base-content/60 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
 
             <!-- Bouton nouvelle conversation -->
@@ -141,6 +151,7 @@ defmodule MonAppWeb.ConversationsLive do
             current_user={@current_user}
             online_users={@online_users}
             filter={@filter}
+            search_query={@search_query}
           />
         </div>
 
@@ -286,8 +297,13 @@ defmodule MonAppWeb.ConversationsLive do
   end
 
   @impl true
-  def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, assign(socket, :search_query, query)}
+  def handle_event("search", %{"value" => query}, socket) do
+    {:noreply, assign(socket, :search_query, String.trim(query))}
+  end
+
+  @impl true
+  def handle_event("clear_search", _, socket) do
+    {:noreply, assign(socket, :search_query, "")}
   end
 
   @impl true

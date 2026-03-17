@@ -140,6 +140,52 @@ defmodule MonApp.Notifications do
     end
   end
 
+  def notify_friend_request(sender, receiver_id) do
+    if sender.id != receiver_id do
+      message = "#{sender.name} vous a envoyé une demande d'ami"
+
+      case create_notification(%{
+             type: "friend_request",
+             message: message,
+             user_id: receiver_id,
+             actor_id: sender.id
+           }) do
+        {:ok, notification} ->
+          notification = Repo.preload(notification, [:actor, :post])
+          broadcast_notification(receiver_id, notification)
+          {:ok, notification}
+
+        error ->
+          error
+      end
+    else
+      {:ok, :self}
+    end
+  end
+
+  def notify_friend_accepted(accepter, sender_id) do
+    if accepter.id != sender_id do
+      message = "#{accepter.name} a accepté votre demande d'ami"
+
+      case create_notification(%{
+             type: "friend_accepted",
+             message: message,
+             user_id: sender_id,
+             actor_id: accepter.id
+           }) do
+        {:ok, notification} ->
+          notification = Repo.preload(notification, [:actor, :post])
+          broadcast_notification(sender_id, notification)
+          {:ok, notification}
+
+        error ->
+          error
+      end
+    else
+      {:ok, :self}
+    end
+  end
+
   defp broadcast_notification(user_id, notification) do
     Phoenix.PubSub.broadcast(
       MonApp.PubSub,

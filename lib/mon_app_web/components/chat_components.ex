@@ -11,19 +11,42 @@ defmodule MonAppWeb.ChatComponents do
   alias MonApp.Chat.MessageReaction
   alias MonApp.Chat.Conversation
 
+  defp get_other_user_name(conv, current_user_id) do
+    if conv.is_group do
+      conv.name || "Groupe"
+    else
+      other = Conversation.other_user(conv, current_user_id)
+      if other, do: other.name, else: ""
+    end
+  end
+
   # ============== CONVERSATION LIST ==============
 
   attr :conversations, :list, required: true
   attr :current_user, :map, required: true
   attr :online_users, :list, default: []
   attr :filter, :string, default: "all"
+  attr :search_query, :string, default: ""
 
   def conversation_list(assigns) do
-    # Filtrer les conversations
+    # Filtrer par onglet
     filtered_conversations = case assigns.filter do
       "unread" -> Enum.filter(assigns.conversations, fn c -> (c.unread_count || 0) > 0 end)
       _ -> assigns.conversations
     end
+
+    # Filtrer par recherche
+    filtered_conversations =
+      if assigns.search_query != "" do
+        search = String.downcase(assigns.search_query)
+        Enum.filter(filtered_conversations, fn conv ->
+          other_name = get_other_user_name(conv, assigns.current_user.id)
+          String.downcase(other_name) |> String.contains?(search)
+        end)
+      else
+        filtered_conversations
+      end
+
     assigns = assign(assigns, :filtered_conversations, filtered_conversations)
 
     ~H"""

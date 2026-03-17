@@ -83,7 +83,7 @@ defmodule MonAppWeb.Navbar do
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5 text-base-content" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            <span :if={@unread_notifications_count > 0} class="absolute -top-0.5 -right-0.5 badge badge-primary badge-xs text-primary-content text-[10px] min-w-[16px] h-4">
+            <span :if={@unread_notifications_count > 0} class="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center leading-none shadow-sm shadow-pink-500/30">
               {@unread_notifications_count}
             </span>
           </div>
@@ -105,7 +105,12 @@ defmodule MonAppWeb.Navbar do
               <div class="max-h-80 overflow-y-auto divide-y divide-base-200">
                 <%= for notification <- @notifications do %>
                   <a
-                    href={if notification.type in ["date_application", "date_accepted"], do: ~p"/my-dates", else: ~p"/posts?post_id=#{notification.post_id}"}
+                    href={cond do
+                      notification.type in ["date_application", "date_accepted"] -> ~p"/my-dates"
+                      notification.type == "friend_request" -> ~p"/users?tab=pending"
+                      notification.type == "friend_accepted" -> ~p"/users?tab=friends"
+                      true -> ~p"/posts?post_id=#{notification.post_id}"
+                    end}
                     phx-click="mark_notification_read"
                     phx-value-id={notification.id}
                     class={"flex items-start gap-2.5 p-3 hover:bg-base-200/50 transition-colors #{unless notification.read, do: "bg-primary/5", else: ""}"}
@@ -206,10 +211,13 @@ defmodule MonAppWeb.Navbar do
     ~H"""
     <.link
       navigate={@href}
-      class={"relative px-5 py-1.5 rounded-full text-sm font-medium transition-all duration-300 #{if @active, do: "bg-pink-500 text-white shadow-sm nav-tab-active", else: "text-base-content/50 hover:text-base-content hover:bg-base-200"}"}
+      class={"relative flex items-center gap-1.5 px-5 py-1.5 rounded-full text-sm font-medium transition-all duration-300 #{if @active, do: "bg-pink-500 text-white shadow-sm nav-tab-active", else: "text-base-content/50 hover:text-base-content hover:bg-base-200"}"}
     >
       {render_slot(@inner_block)}
-      <span :if={@badge > 0} class="absolute -top-1 -right-1 badge badge-primary badge-xs text-primary-content text-[10px] min-w-[16px] h-4">
+      <span
+        :if={@badge > 0}
+        class={"min-w-[18px] h-[18px] rounded-full text-[10px] font-bold flex items-center justify-center leading-none #{if @active, do: "bg-white text-pink-500", else: "bg-pink-500 text-white"}"}
+      >
         {@badge}
       </span>
     </.link>
@@ -228,7 +236,10 @@ defmodule MonAppWeb.Navbar do
     <.link navigate={@href} class={"flex flex-col items-center justify-center gap-0.5 relative w-16 transition-all duration-300 #{if @active, do: "text-pink-500 nav-tab-active", else: "text-base-content/40"}"}>
       <div class="relative">
         {render_slot(@inner_block)}
-        <span :if={@badge > 0} class="absolute -top-1.5 -right-2.5 badge badge-primary badge-xs text-primary-content text-[10px] min-w-[14px] h-3.5">
+        <span
+          :if={@badge > 0}
+          class="absolute -top-1.5 -right-2.5 min-w-[16px] h-[16px] rounded-full bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center leading-none shadow-sm shadow-pink-500/30"
+        >
           {@badge}
         </span>
       </div>

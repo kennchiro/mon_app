@@ -51,6 +51,35 @@ defmodule MonApp.Social do
 
   @doc "Récupère tous les users qui ne sont pas amis avec user_id"
   def list_non_friends(user_id) do
+    non_friends_query(user_id)
+    |> Repo.all()
+  end
+
+  def list_non_friends_paginated(user_id, page, per_page \\ 20) do
+    offset = (page - 1) * per_page
+
+    users =
+      non_friends_query(user_id)
+      |> limit(^(per_page + 1))
+      |> offset(^offset)
+      |> Repo.all()
+
+    has_more = length(users) > per_page
+    {Enum.take(users, per_page), has_more}
+  end
+
+  def search_non_friends(user_id, query) when is_binary(query) and query != "" do
+    search = "%#{query}%"
+
+    non_friends_query(user_id)
+    |> where([u], ilike(u.name, ^search) or ilike(u.email, ^search))
+    |> limit(20)
+    |> Repo.all()
+  end
+
+  def search_non_friends(_user_id, _query), do: []
+
+  defp non_friends_query(user_id) do
     # IDs des amis (acceptés ou en attente)
     friend_ids =
       from(f in Friendship,
@@ -66,13 +95,35 @@ defmodule MonApp.Social do
       where: u.id not in ^friend_ids,
       order_by: u.name
     )
-    |> Repo.all()
   end
 
   # ============== ACTIONS ==============
 
-  @doc "Envoie une demande d'ami"
+  @daily_request_limit 20
+
+  @doc "Compte les demandes envoyées aujourd'hui par un utilisateur"
+  def count_today_requests(user_id) do
+    today = Date.utc_today()
+    start_of_day = NaiveDateTime.new!(today, ~T[00:00:00])
+
+    from(f in Friendship,
+      where: f.user_id == ^user_id,
+      where: f.inserted_at >= ^start_of_day
+    )
+    |> Repo.aggregate(:count)
+  end
+
+  @doc "Envoie une demande d'ami (max #{@daily_request_limit}/jour)"
   def send_friend_request(user_id, friend_id) do
+    # Vérifier la limite journalière
+    if count_today_requests(user_id) >= @daily_request_limit do
+      {:error, :daily_limit_reached}
+    else
+      do_send_friend_request(user_id, friend_id)
+    end
+  end
+
+  defp do_send_friend_request(user_id, friend_id) do
     # Vérifier si une demande existe déjà (dans les deux sens)
     existing =
       from(f in Friendship,

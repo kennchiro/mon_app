@@ -11,6 +11,7 @@ defmodule MonAppWeb.UserComponents do
   attr :active_tab, :atom, required: true
   attr :pending_count, :integer, default: 0
   attr :sent_count, :integer, default: 0
+  attr :friends_count, :integer, default: 0
 
   def user_tabs(assigns) do
     ~H"""
@@ -21,6 +22,9 @@ defmodule MonAppWeb.UserComponents do
         class={"tab #{if @active_tab == :friends, do: "tab-active"}"}
       >
         Mes amis
+        <span :if={@friends_count > 0} class="badge badge-ghost badge-sm ml-1">
+          {@friends_count}
+        </span>
       </button>
       <button
         phx-click="change_tab"
@@ -83,19 +87,41 @@ defmodule MonAppWeb.UserComponents do
   def user_card(assigns) do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
-      <div class="card-body flex-row items-center gap-4 py-4">
-        <PostComponents.profile_link user_id={@user.id}>
-          <PostComponents.user_avatar name={@user.name} avatar={@user.avatar} />
-        </PostComponents.profile_link>
-
-        <div class="flex-1">
+      <div class="card-body p-3 sm:p-4">
+        <div class="flex items-center gap-3">
           <PostComponents.profile_link user_id={@user.id}>
-            <h3 class="font-semibold hover:underline cursor-pointer">{@user.name}</h3>
+            <PostComponents.user_avatar name={@user.name} avatar={@user.avatar} />
           </PostComponents.profile_link>
-          <p class="text-sm text-base-content/50">{@user.email}</p>
+
+          <div class="flex-1 min-w-0">
+            <PostComponents.profile_link user_id={@user.id}>
+              <h3 class="font-semibold hover:underline cursor-pointer truncate">{@user.name}</h3>
+            </PostComponents.profile_link>
+            <p class="text-sm text-base-content/50 truncate">{@user.email}</p>
+          </div>
+
+          <.action_buttons :if={@type in [:friend, :discover, :sent]} user={@user} type={@type} />
+
+          <!-- Pending: desktop only inline buttons -->
+          <div :if={@type == :pending} class="hidden sm:flex gap-2">
+            <button phx-click="accept_request" phx-value-id={@user.friendship_id} class="btn btn-primary btn-sm">
+              Accepter
+            </button>
+            <button phx-click="reject_request" phx-value-id={@user.friendship_id} class="btn btn-ghost btn-sm">
+              Refuser
+            </button>
+          </div>
         </div>
 
-        <.action_buttons user={@user} type={@type} />
+        <!-- Pending: mobile only buttons below -->
+        <div :if={@type == :pending} class="flex gap-2 mt-2 ml-12 sm:hidden">
+          <button phx-click="accept_request" phx-value-id={@user.friendship_id} class="btn btn-primary btn-sm flex-1">
+            Accepter
+          </button>
+          <button phx-click="reject_request" phx-value-id={@user.friendship_id} class="btn btn-ghost btn-sm flex-1">
+            Refuser
+          </button>
+        </div>
       </div>
     </div>
     """
@@ -121,26 +147,7 @@ defmodule MonAppWeb.UserComponents do
     """
   end
 
-  defp action_buttons(%{type: :pending} = assigns) do
-    ~H"""
-    <div class="flex gap-2">
-      <button
-        phx-click="accept_request"
-        phx-value-id={@user.friendship_id}
-        class="btn btn-primary btn-sm"
-      >
-        Accepter
-      </button>
-      <button
-        phx-click="reject_request"
-        phx-value-id={@user.friendship_id}
-        class="btn btn-ghost btn-sm"
-      >
-        Refuser
-      </button>
-    </div>
-    """
-  end
+  # pending actions are rendered directly in user_card for responsive layout
 
   defp action_buttons(%{type: :sent} = assigns) do
     ~H"""
@@ -177,7 +184,7 @@ defmodule MonAppWeb.UserComponents do
 
   attr :type, :atom, required: true
 
-  defp empty_users(%{type: :friend} = assigns) do
+  def empty_users(%{type: :friend} = assigns) do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body text-center text-base-content/50 py-10">
@@ -189,7 +196,7 @@ defmodule MonAppWeb.UserComponents do
     """
   end
 
-  defp empty_users(%{type: :pending} = assigns) do
+  def empty_users(%{type: :pending} = assigns) do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body text-center text-base-content/50 py-10">
@@ -200,7 +207,7 @@ defmodule MonAppWeb.UserComponents do
     """
   end
 
-  defp empty_users(%{type: :sent} = assigns) do
+  def empty_users(%{type: :sent} = assigns) do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body text-center text-base-content/50 py-10">
@@ -211,12 +218,23 @@ defmodule MonAppWeb.UserComponents do
     """
   end
 
-  defp empty_users(%{type: :discover} = assigns) do
+  def empty_users(%{type: :discover} = assigns) do
     ~H"""
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body text-center text-base-content/50 py-10">
         <div class="text-4xl mb-2">🎉</div>
         <p>Vous connaissez tout le monde !</p>
+      </div>
+    </div>
+    """
+  end
+
+  def empty_users(%{type: :search} = assigns) do
+    ~H"""
+    <div class="card bg-base-100 shadow-sm">
+      <div class="card-body text-center text-base-content/50 py-10">
+        <div class="text-4xl mb-2">🔍</div>
+        <p>Aucun résultat trouvé.</p>
       </div>
     </div>
     """

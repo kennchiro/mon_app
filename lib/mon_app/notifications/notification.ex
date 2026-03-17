@@ -23,7 +23,7 @@ defmodule MonApp.Notifications.Notification do
     notification
     |> cast(attrs, [:type, :message, :read, :user_id, :actor_id, :post_id, :comment_id])
     |> validate_required([:type, :message, :user_id, :actor_id])
-    |> validate_inclusion(:type, ["comment", "reply", "reaction", "friend_request", "date_application", "date_accepted"])
+    |> validate_inclusion(:type, ["comment", "reply", "reaction", "friend_request", "friend_accepted", "date_application", "date_accepted"])
     |> foreign_key_constraint(:user_id)
     |> foreign_key_constraint(:actor_id)
     |> foreign_key_constraint(:post_id)
