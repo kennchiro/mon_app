@@ -75,8 +75,39 @@ defmodule MonAppWeb.Navbar do
         </.nav_link>
       </div>
 
-      <!-- Right side: Notifications + Avatar -->
+      <!-- Right side: Theme + Notifications + Avatar -->
       <div class="flex-1 flex justify-end items-center gap-1.5">
+        <!-- Theme toggle -->
+        <button
+          id="theme-toggle"
+          onclick="
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('phx:theme', next);
+            document.documentElement.setAttribute('data-theme', next);
+            document.getElementById('theme-icon-sun').style.display = next === 'dark' ? 'block' : 'none';
+            document.getElementById('theme-icon-moon').style.display = next === 'dark' ? 'none' : 'block';
+          "
+          class="w-9 h-9 rounded-full bg-base-200 grid place-items-center hover:bg-base-300 transition-colors"
+          title="Changer le thème"
+        >
+          <svg id="theme-icon-sun" style="display:none" class="h-4 w-4 text-base-content" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="theme-icon-moon" class="h-4 w-4 text-base-content" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+        <script>
+          (function() {
+            var t = document.documentElement.getAttribute('data-theme') || localStorage.getItem('phx:theme');
+            if (t === 'dark') {
+              document.getElementById('theme-icon-sun').style.display = 'block';
+              document.getElementById('theme-icon-moon').style.display = 'none';
+            }
+          })();
+        </script>
+
         <!-- Notifications -->
         <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="cursor-pointer relative w-9 h-9 rounded-full bg-base-200 grid place-items-center">
@@ -138,16 +169,21 @@ defmodule MonAppWeb.Navbar do
 
         <!-- Avatar / Profile -->
         <div class="dropdown dropdown-end">
-          <div tabindex="0" role="button" class="cursor-pointer">
+          <div tabindex="0" role="button" class="cursor-pointer relative">
             <%= if @current_user.avatar do %>
-              <div class="w-9 h-9 rounded-full overflow-hidden ring-2 ring-base-200">
+              <div class="w-9 h-9 rounded-full overflow-hidden">
                 <img src={"/uploads/avatars/#{@current_user.avatar}"} alt="Avatar" class="w-full h-full object-cover" />
               </div>
             <% else %>
-              <div class="w-9 h-9 rounded-full bg-primary grid place-items-center">
-                <span class="text-primary-content text-sm font-bold leading-none">{String.first(@current_user.name)}</span>
+              <div class="w-9 h-9 rounded-full bg-base-200 grid place-items-center">
+                <span class="text-base-content text-sm font-bold leading-none">{String.first(@current_user.name)}</span>
               </div>
             <% end %>
+            <div class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-base-100 grid place-items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5 text-base-content/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
           </div>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-2xl z-[1] w-52 p-2 shadow-xl mt-2 border border-base-200">
             <li class="px-3 py-2">

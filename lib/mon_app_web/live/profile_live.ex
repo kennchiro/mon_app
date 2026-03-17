@@ -61,6 +61,7 @@ defmodule MonAppWeb.ProfileLive do
      |> assign(:show_delete_confirm, false)
      |> assign(:nationality_search, "")
      |> assign(:nationality_open, false)
+     |> assign(:theme, get_connect_params(socket)["theme"] || "light")
      |> allow_upload(:avatar,
        accept: ~w(.jpg .jpeg .png .gif .webp),
        max_entries: 1,
@@ -181,6 +182,9 @@ defmodule MonAppWeb.ProfileLive do
                     {@current_user.location}
                   </span>
                   <span :if={@current_user.looking_for && @current_user.looking_for != "any"} class="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-500/10 rounded-full text-xs text-pink-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                     {MonApp.Accounts.User.looking_for_label(@current_user.looking_for)}
                   </span>
                   <span :if={@current_user.nationality} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
@@ -621,6 +625,17 @@ defmodule MonAppWeb.ProfileLive do
       {:error, changeset} ->
         {:noreply, assign(socket, :profile_form, to_form(changeset))}
     end
+  end
+
+  # --- Theme ---
+
+  @impl true
+  def handle_event("toggle_theme", _, socket) do
+    new_theme = if socket.assigns.theme == "dark", do: "light", else: "dark"
+    {:noreply,
+     socket
+     |> assign(:theme, new_theme)
+     |> push_event("set-theme", %{theme: new_theme})}
   end
 
   # --- Nationality Picker ---

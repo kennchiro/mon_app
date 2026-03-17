@@ -6,6 +6,8 @@ defmodule MonApp.Social do
   import Ecto.Query
   alias MonApp.Repo
   alias MonApp.Social.Friendship
+  alias MonApp.Social.UserBlock
+  alias MonApp.Social.UserReport
   alias MonApp.Accounts.User
 
   # ============== LISTE DES AMIS ==============
@@ -89,10 +91,14 @@ defmodule MonApp.Social do
       )
       |> Repo.all()
 
-    # Tous les users sauf soi-même et les amis
+    # IDs des utilisateurs bloqués (dans les deux sens)
+    blocked_ids = list_blocked_ids(user_id)
+
+    # Tous les users sauf soi-même, amis et bloqués
     from(u in User,
       where: u.id != ^user_id,
       where: u.id not in ^friend_ids,
+      where: u.id not in ^blocked_ids,
       order_by: u.name
     )
   end
@@ -290,5 +296,80 @@ defmodule MonApp.Social do
       "user:#{user_id}",
       {event, user_id}
     )
+  end
+
+  # ============== BLOCKS ==============
+
+  def block_user(blocker_id, blocked_id) do
+    # Remove friendship if exists
+    remove_friend(blocker_id, blocked_id)
+
+    %UserBlock{}
+    |> UserBlock.changeset(%{blocker_id: blocker_id, blocked_id: blocked_id})
+    |> Repo.insert()
+  end
+
+  def unblock_user(blocker_id, blocked_id) do
+    case Repo.get_by(UserBlock, blocker_id: blocker_id, blocked_id: blocked_id) do
+      nil -> {:error, :not_found}
+      block -> Repo.delete(block)
+    end
+  end
+
+  def blocked?(blocker_id, blocked_id) do
+    Repo.exists?(
+      from(b in UserBlock,
+        where: b.blocker_id == ^blocker_id and b.blocked_id == ^blocked_id
+      )
+    )
+  end
+
+  def blocked_by?(user_id, other_id) do
+    blocked?(user_id, other_id) || blocked?(other_id, user_id)
+  end
+
+  def list_blocked_users(user_id) do
+    from(b in UserBlock,
+      where: b.blocker_id == ^user_id,
+      join: u in User, on: u.id == b.blocked_id,
+      select: u,
+      order_by: [desc: b.inserted_at]
+    )
+    |> Repo.all()
+  end
+
+  def list_blocked_ids(user_id) do
+    from(b in UserBlock,
+      where: b.blocker_id == ^user_id or b.blocked_id == ^user_id,
+      select: fragment("CASE WHEN ? = ? THEN ? ELSE ? END",
+        b.blocker_id, ^user_id, b.blocked_id, b.blocker_id)
+    )
+    |> Repo.all()
+  end
+
+  # ============== REPORTS ==============
+
+  def report_user(reporter_id, reported_id, reason, details \\ nil) do
+    %UserReport{}
+    |> UserReport.changeset(%{
+      reporter_id: reporter_id,
+      reported_id: reported_id,
+      reason: reason,
+      details: details,
+      report_type: "user"
+    })
+    |> Repo.insert()
+  end
+
+  def report_post(reporter_id, post_id, reported_id, reason, report_type \\ "post") do
+    %UserReport{}
+    |> UserReport.changeset(%{
+      reporter_id: reporter_id,
+      reported_id: reported_id,
+      post_id: post_id,
+      reason: reason,
+      report_type: report_type
+    })
+    |> Repo.insert()
   end
 end

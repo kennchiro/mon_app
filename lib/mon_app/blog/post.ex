@@ -164,7 +164,7 @@ defmodule MonApp.Blog.Post do
 
   def date_status_label("open"), do: "Ouvert"
   def date_status_label("full"), do: "Complet"
-  def date_status_label("completed"), do: "Terminé"
+  def date_status_label("completed"), do: "Passé"
   def date_status_label("cancelled"), do: "Annulé"
   def date_status_label(_), do: "Ouvert"
 end

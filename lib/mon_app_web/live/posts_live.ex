@@ -33,7 +33,6 @@ defmodule MonAppWeb.PostsLive do
       })
 
       Phoenix.PubSub.subscribe(MonApp.PubSub, @topic)
-      # S'abonner aux notifications de nouveaux messages
       Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
@@ -88,7 +87,10 @@ defmodule MonAppWeb.PostsLive do
        max_entries: 4,
        max_file_size: 5_000_000
      )
-     |> ToastHandler.init_toast()}
+     |> ToastHandler.init_toast()
+     |> assign(:online_user_ids, get_online_ids())
+     |> assign(:reporting_post, nil)
+     |> assign(:reporting_type, nil)}
   end
 
   @impl true
@@ -195,7 +197,7 @@ defmodule MonAppWeb.PostsLive do
           applications={@date_applications}
           current_user={@current_user}
         />
-        <.post_list posts={@posts} current_user={@current_user} feed_filter={@feed_filter} />
+        <.post_list posts={@posts} current_user={@current_user} feed_filter={@feed_filter} online_user_ids={@online_user_ids} />
 
         <!-- Infinite Scroll Sentinel -->
         <div
@@ -211,6 +213,38 @@ defmodule MonAppWeb.PostsLive do
           Vous avez tout vu !
         </div>
       </main>
+
+      <!-- Report Post Modal -->
+      <div :if={@reporting_post} class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center px-4">
+        <div class="bg-base-100 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" phx-click-away="close_report_modal">
+          <div class="p-5">
+            <h3 class="text-lg font-bold text-base-content">
+              {if @reporting_type == "date", do: "Signaler ce date", else: "Signaler cette publication"}
+            </h3>
+            <p class="text-sm text-base-content/50 mt-1">Choisissez la raison du signalement</p>
+
+            <div class="space-y-1.5 mt-4">
+              <button
+                :for={reason <- MonApp.Social.UserReport.reasons_for(@reporting_type)}
+                type="button"
+                phx-click="submit_report"
+                phx-value-reason={reason}
+                class="w-full text-left px-4 py-2.5 rounded-xl text-sm hover:bg-base-200/50 transition-colors flex items-center justify-between"
+              >
+                <span>{MonApp.Social.UserReport.reason_label(reason)}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="border-t border-base-200">
+            <button phx-click="close_report_modal" class="w-full py-3 text-sm font-medium text-base-content/50 hover:bg-base-200/50 transition-colors">
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end
@@ -1053,6 +1087,54 @@ defmodule MonAppWeb.PostsLive do
 
   # ============== NOTIFICATION EVENTS ==============
 
+  # ============== REPORT / BLOCK ==============
+
+  @impl true
+  def handle_event("report_post", %{"id" => id, "type" => type}, socket) do
+    post = Enum.find(socket.assigns.posts, fn p -> p.id == String.to_integer(id) end)
+    {:noreply, socket |> assign(:reporting_post, post) |> assign(:reporting_type, type)}
+  end
+
+  @impl true
+  def handle_event("close_report_modal", _, socket) do
+    {:noreply, socket |> assign(:reporting_post, nil) |> assign(:reporting_type, nil)}
+  end
+
+  @impl true
+  def handle_event("submit_report", %{"reason" => reason}, socket) do
+    post = socket.assigns.reporting_post
+    user_id = socket.assigns.current_user.id
+
+    case Social.report_post(user_id, post.id, post.user_id, reason, socket.assigns.reporting_type) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:reporting_post, nil)
+         |> assign(:reporting_type, nil)
+         |> put_flash(:info, "Signalement envoyé. Merci pour votre vigilance.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Erreur lors du signalement")}
+    end
+  end
+
+  @impl true
+  def handle_event("block_user_from_post", %{"id" => user_id}, socket) do
+    current_user_id = socket.assigns.current_user.id
+    blocked_id = String.to_integer(user_id)
+
+    Social.block_user(current_user_id, blocked_id)
+    blocked_name = Enum.find_value(socket.assigns.posts, fn p -> if p.user_id == blocked_id, do: p.user.name end)
+
+    # Filter posts from blocked user
+    posts = Enum.reject(socket.assigns.posts, fn p -> p.user_id == blocked_id end)
+
+    {:noreply,
+     socket
+     |> assign(:posts, posts)
+     |> put_flash(:info, "#{blocked_name} a été bloqué")}
+  end
+
   @impl true
   def handle_event("dismiss_toast", _, socket) do
     Process.send_after(self(), :clear_toast, 300)
@@ -1389,6 +1471,12 @@ defmodule MonAppWeb.PostsLive do
 
       {:ok, filename}
     end)
+  end
+
+  defp get_online_ids do
+    Presence.list("users:online")
+    |> Map.keys()
+    |> Enum.map(&String.to_integer/1)
   end
 
   defp save_date_images(socket, post_id) do

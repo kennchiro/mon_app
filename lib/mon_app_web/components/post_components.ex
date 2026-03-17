@@ -1268,6 +1268,7 @@ defmodule MonAppWeb.PostComponents do
   attr :posts, :list, required: true
   attr :current_user, :map, required: true
   attr :feed_filter, :string, default: "standard"
+  attr :online_user_ids, :list, default: []
 
   def post_list(assigns) do
     ~H"""
@@ -1309,9 +1310,9 @@ defmodule MonAppWeb.PostComponents do
 
       <%= for post <- @posts do %>
         <%= if post.post_type == "date" do %>
-          <.date_post_card post={post} current_user={@current_user} />
+          <.date_post_card post={post} current_user={@current_user} online_user_ids={@online_user_ids} />
         <% else %>
-          <.post_item post={post} current_user={@current_user} />
+          <.post_item post={post} current_user={@current_user} online_user_ids={@online_user_ids} />
         <% end %>
       <% end %>
     </div>
@@ -1322,6 +1323,7 @@ defmodule MonAppWeb.PostComponents do
 
   attr :post, :map, required: true
   attr :current_user, :map, required: true
+  attr :online_user_ids, :list, default: []
 
   def post_item(assigns) do
     comment_count = length(assigns.post.comments || [])
@@ -1336,7 +1338,7 @@ defmodule MonAppWeb.PostComponents do
     <article id={"post-#{@post.id}"} class="bg-base-100 rounded-lg shadow-sm">
       <!-- Header compact -->
       <div class="px-3 pt-3 pb-2">
-        <.post_header post={@post} current_user={@current_user} />
+        <.post_header post={@post} current_user={@current_user} online_user_ids={@online_user_ids} />
       </div>
 
       <!-- Text content (si le post a un titre ou body) -->
@@ -1607,12 +1609,13 @@ defmodule MonAppWeb.PostComponents do
 
   attr :post, :map, required: true
   attr :current_user, :map, required: true
+  attr :online_user_ids, :list, default: []
 
   defp post_header(assigns) do
     ~H"""
     <div class="flex items-center gap-2.5">
       <.profile_link user_id={@post.user_id}>
-        <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-9 h-9" />
+        <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-9 h-9" online={@post.user_id in @online_user_ids} />
       </.profile_link>
 
       <div class="flex-1 min-w-0">
@@ -1633,7 +1636,7 @@ defmodule MonAppWeb.PostComponents do
         </div>
       </div>
 
-      <.post_menu :if={@post.user_id == @current_user.id} post={@post} />
+      <.post_menu post={@post} current_user={@current_user} />
     </div>
     """
   end
@@ -1857,8 +1860,12 @@ defmodule MonAppWeb.PostComponents do
   # ============== POST MENU ==============
 
   attr :post, :map, required: true
+  attr :current_user, :map, required: true
 
   defp post_menu(assigns) do
+    is_owner = assigns.post.user_id == assigns.current_user.id
+    assigns = assign(assigns, :is_owner, is_owner)
+
     ~H"""
     <div class="dropdown dropdown-end">
       <button tabindex="0" type="button" class="w-8 h-8 rounded-full flex items-center justify-center text-base-content/50 hover:bg-base-200">
@@ -1866,21 +1873,39 @@ defmodule MonAppWeb.PostComponents do
           <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
         </svg>
       </button>
-      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-lg z-[1] w-44 p-1 shadow-lg border border-base-200">
-        <li>
-          <button phx-click="edit_post" phx-value-id={@post.id} class="text-[13px] py-2">
+      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-xl z-[1] w-48 p-1.5 shadow-xl border border-base-200">
+        <!-- Owner actions -->
+        <li :if={@is_owner}>
+          <button phx-click="edit_post" phx-value-id={@post.id} class="text-[13px] py-2 flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             Modifier
           </button>
         </li>
-        <li>
-          <button phx-click="delete" phx-value-id={@post.id} data-confirm="Supprimer ce post ?" class="text-[13px] py-2 text-error">
+        <li :if={@is_owner}>
+          <button phx-click="delete" phx-value-id={@post.id} data-confirm="Supprimer ce post ?" class="text-[13px] py-2 text-error flex items-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
             Supprimer
+          </button>
+        </li>
+        <!-- Non-owner actions -->
+        <li :if={!@is_owner}>
+          <button phx-click="report_post" phx-value-id={@post.id} phx-value-type="post" class="text-[13px] py-2 flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+            </svg>
+            Signaler la publication
+          </button>
+        </li>
+        <li :if={!@is_owner}>
+          <button phx-click="block_user_from_post" phx-value-id={@post.user_id} class="text-[13px] py-2 text-error flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            Bloquer @{@post.user.name}
           </button>
         </li>
       </ul>
@@ -1906,25 +1931,42 @@ defmodule MonAppWeb.PostComponents do
   attr :name, :string, required: true
   attr :avatar, :string, default: nil
   attr :size, :string, default: "w-10 h-10"
+  attr :online, :boolean, default: false
 
   def user_avatar(assigns) do
-    # Generate a consistent color based on the name
     colors = ["bg-blue-500", "bg-green-500", "bg-purple-500", "bg-pink-500", "bg-orange-500", "bg-teal-500"]
     color_index = :erlang.phash2(assigns.name, length(colors))
     color = Enum.at(colors, color_index)
     assigns = assign(assigns, :bg_color, color)
 
     ~H"""
-    <%= if @avatar do %>
-      <div class={"#{@size} rounded-full overflow-hidden flex-shrink-0"}>
-        <img src={"/uploads/avatars/#{@avatar}"} alt={@name} class="w-full h-full object-cover" />
+    <%= if @online do %>
+      <div class={"relative flex-shrink-0 #{@size}"}>
+        <%= if @avatar do %>
+          <div class="w-full h-full rounded-full overflow-hidden">
+            <img src={"/uploads/avatars/#{@avatar}"} alt={@name} class="w-full h-full object-cover" />
+          </div>
+        <% else %>
+          <div class={"w-full h-full rounded-full #{@bg_color} flex items-center justify-center"}>
+            <span class="text-white font-semibold text-sm">
+              {String.first(@name) |> String.upcase()}
+            </span>
+          </div>
+        <% end %>
+        <span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-base-100"></span>
       </div>
     <% else %>
-      <div class={"#{@size} rounded-full #{@bg_color} flex items-center justify-center flex-shrink-0"}>
-        <span class="text-white font-semibold text-sm">
-          {String.first(@name) |> String.upcase()}
-        </span>
-      </div>
+      <%= if @avatar do %>
+        <div class={"#{@size} rounded-full overflow-hidden flex-shrink-0"}>
+          <img src={"/uploads/avatars/#{@avatar}"} alt={@name} class="w-full h-full object-cover" />
+        </div>
+      <% else %>
+        <div class={"#{@size} rounded-full #{@bg_color} flex items-center justify-center flex-shrink-0"}>
+          <span class="text-white font-semibold text-sm">
+            {String.first(@name) |> String.upcase()}
+          </span>
+        </div>
+      <% end %>
     <% end %>
     """
   end
@@ -2253,6 +2295,7 @@ defmodule MonAppWeb.PostComponents do
 
   attr :post, :map, required: true
   attr :current_user, :map, required: true
+  attr :online_user_ids, :list, default: []
 
   def date_post_card(assigns) do
     accepted_count = Enum.count(assigns.post.date_applications || [], fn a -> a.status == "accepted" end)
@@ -2260,6 +2303,8 @@ defmodule MonAppWeb.PostComponents do
     user_application = Enum.find(assigns.post.date_applications || [], fn a -> a.user_id == assigns.current_user.id end)
     is_owner = assigns.post.user_id == assigns.current_user.id
     is_full = assigns.post.date_status == "full" or accepted_count >= assigns.post.date_spots
+    is_past = assigns.post.date_status in ["completed", "cancelled"]
+    countdown = date_countdown(assigns.post.date_datetime)
 
     assigns = assigns
       |> assign(:accepted_count, accepted_count)
@@ -2267,16 +2312,19 @@ defmodule MonAppWeb.PostComponents do
       |> assign(:user_application, user_application)
       |> assign(:is_owner, is_owner)
       |> assign(:is_full, is_full)
+      |> assign(:is_past, is_past)
+      |> assign(:countdown, countdown)
 
     ~H"""
-    <article id={"post-#{@post.id}"} class="bg-base-100 rounded-xl shadow-lg overflow-hidden border border-base-200">
+    <article id={"post-#{@post.id}"} class={"bg-base-100 rounded-xl shadow-lg overflow-hidden border border-base-200 #{if @is_past, do: "opacity-70", else: ""}"}>
       <!-- Header -->
       <div class="p-5 flex items-center justify-between border-b border-base-200">
         <div class="flex items-center gap-3.5">
-          <a href={~p"/profile/#{@post.user.id}"} class="relative">
+          <a href={~p"/profile/#{@post.user.id}"} class="relative shrink-0">
             <div class="w-12 h-12 rounded-full border-2 border-pink-500 p-0.5">
               <.user_avatar name={@post.user.name} avatar={@post.user.avatar} size="w-full h-full" />
             </div>
+            <span :if={@post.user_id in @online_user_ids} class="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-base-100"></span>
           </a>
           <div>
             <a href={~p"/profile/#{@post.user.id}"} class="font-bold text-base hover:text-pink-500 transition-colors">{@post.user.name}</a>
@@ -2287,14 +2335,15 @@ defmodule MonAppWeb.PostComponents do
           <div class={"badge #{status_badge_class(@post.date_status)} badge-sm"}>
             {MonApp.Blog.Post.date_status_label(@post.date_status)}
           </div>
-          <div :if={@is_owner} class="dropdown dropdown-end">
-            <label tabindex="0" class="text-base-content/40 hover:text-pink-500 transition-colors cursor-pointer">
+          <div class="dropdown dropdown-end">
+            <label tabindex="0" class="text-base-content/40 hover:text-base-content transition-colors cursor-pointer">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
               </svg>
             </label>
-            <ul tabindex="0" class="dropdown-content menu p-1.5 shadow-lg bg-base-100 rounded-xl w-44 border border-base-200 z-50">
-              <li>
+            <ul tabindex="0" class="dropdown-content menu p-1.5 shadow-xl bg-base-100 rounded-xl w-48 border border-base-200 z-50">
+              <!-- Owner -->
+              <li :if={@is_owner}>
                 <button phx-click="edit_date" phx-value-id={@post.id} class="flex items-center gap-2 text-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -2302,12 +2351,29 @@ defmodule MonAppWeb.PostComponents do
                   Modifier
                 </button>
               </li>
-              <li>
-                <button phx-click="delete_date" phx-value-id={@post.id} data-confirm="Supprimer ce date ?" class="flex items-center gap-2 text-sm text-error hover:!bg-error/10">
+              <li :if={@is_owner}>
+                <button phx-click="delete_date" phx-value-id={@post.id} data-confirm="Supprimer ce date ?" class="flex items-center gap-2 text-sm text-error">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                   Supprimer
+                </button>
+              </li>
+              <!-- Non-owner -->
+              <li :if={!@is_owner}>
+                <button phx-click="report_post" phx-value-id={@post.id} phx-value-type="date" class="flex items-center gap-2 text-sm">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                  </svg>
+                  Signaler ce date
+                </button>
+              </li>
+              <li :if={!@is_owner}>
+                <button phx-click="block_user_from_post" phx-value-id={@post.user_id} class="flex items-center gap-2 text-sm text-error">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
+                  Bloquer @{@post.user.name}
                 </button>
               </li>
             </ul>
@@ -2341,11 +2407,13 @@ defmodule MonAppWeb.PostComponents do
               </svg>
               {@post.date_location}
             </div>
-            <div class="flex items-center gap-1.5 bg-pink-500/10 text-pink-600 px-3.5 py-1.5 rounded-full text-sm font-semibold">
+            <div class={"flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-semibold #{if @is_past, do: "bg-base-200 text-base-content/40", else: "bg-pink-500/10 text-pink-600"}"}>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              {format_date_datetime(@post.date_datetime)}
+              <span>{format_date_datetime(@post.date_datetime)}</span>
+              <span :if={@countdown} class={if @is_past, do: "opacity-60", else: "opacity-40"}>|</span>
+              <span :if={@countdown}>{@countdown.text}</span>
             </div>
             <div class="flex items-center gap-1.5 bg-base-200 text-base-content/70 px-3.5 py-1.5 rounded-full text-sm font-semibold">
               Budget: {MonApp.Blog.Post.date_budget_label(@post.date_budget || "low")}
@@ -2501,9 +2569,47 @@ defmodule MonAppWeb.PostComponents do
 
   defp status_badge_class("open"), do: "badge-success"
   defp status_badge_class("full"), do: "badge-warning"
-  defp status_badge_class("completed"), do: "badge-info"
+  defp status_badge_class("completed"), do: "badge-ghost opacity-60"
   defp status_badge_class("cancelled"), do: "badge-error"
   defp status_badge_class(_), do: "badge-ghost"
+
+  defp date_countdown(nil), do: nil
+  defp date_countdown(datetime) do
+    now = NaiveDateTime.utc_now()
+    diff_seconds = NaiveDateTime.diff(datetime, now)
+    diff_hours = div(diff_seconds, 3600)
+    diff_days = div(diff_seconds, 86400)
+
+    cond do
+      diff_seconds < 0 ->
+        past_days = abs(diff_days)
+        text = cond do
+          past_days == 0 -> "Terminé aujourd'hui"
+          past_days == 1 -> "Hier"
+          true -> "Il y a #{past_days}j"
+        end
+        %{text: text, text_class: "text-base-content/40"}
+
+      diff_days == 0 && diff_hours <= 0 ->
+        %{text: "Bientôt", text_class: "text-success font-bold animate-pulse"}
+
+      diff_days == 0 ->
+        %{text: "Aujourd'hui", text_class: "text-success font-bold"}
+
+      diff_days == 1 ->
+        %{text: "Demain", text_class: "text-orange-500 font-bold"}
+
+      diff_days <= 7 ->
+        %{text: "Dans #{diff_days}j", text_class: "text-blue-500"}
+
+      diff_days <= 30 ->
+        weeks = div(diff_days, 7)
+        %{text: "Dans #{weeks} sem.", text_class: "text-base-content/50"}
+
+      true ->
+        %{text: "Dans #{div(diff_days, 30)} mois", text_class: "text-base-content/50"}
+    end
+  end
 
   defp format_date_datetime(nil), do: "À définir"
   defp format_date_datetime(datetime) do

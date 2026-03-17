@@ -75,10 +75,26 @@ defmodule MonApp.Blog do
   @doc """
   Récupère les posts visibles pour un user avec pagination.
   """
+  @doc "Marque les dates passées comme complétées"
+  def expire_past_dates do
+    now = NaiveDateTime.utc_now()
+
+    Post
+    |> where([p], p.post_type == "date")
+    |> where([p], not is_nil(p.date_datetime))
+    |> where([p], p.date_datetime < ^now)
+    |> where([p], p.date_status == "open")
+    |> Repo.update_all(set: [date_status: "completed"])
+  end
+
   def list_posts_for_user_paginated(user_id, page \\ 1, per_page \\ @posts_per_page, opts \\ []) do
     offset = (page - 1) * per_page
     friend_ids = Social.list_friends(user_id) |> Enum.map(& &1.id)
+    blocked_ids = Social.list_blocked_ids(user_id)
     post_type_filter = Keyword.get(opts, :post_type, "all")
+
+    # Auto-expire past dates
+    expire_past_dates()
 
     query =
       Post
@@ -87,6 +103,7 @@ defmodule MonApp.Blog do
         p.user_id == ^user_id or
         (p.visibility == "friends" and p.user_id in ^friend_ids)
       )
+      |> where([p], p.user_id not in ^blocked_ids)
 
     query =
       case post_type_filter do

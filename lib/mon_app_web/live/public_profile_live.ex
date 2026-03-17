@@ -93,6 +93,10 @@ defmodule MonAppWeb.PublicProfileLive do
            |> assign(:sharing_post, nil)
            |> assign(:share_form, to_form(%{"visibility" => "public"}))
            |> assign(:show_remove_confirm, false)
+           |> assign(:is_blocked, Social.blocked?(current_user.id, profile_user_id))
+           |> assign(:profile_online, to_string(profile_user_id) in (Presence.list("users:online") |> Map.keys()))
+           |> assign(:show_report_modal, false)
+           |> assign(:report_reason, nil)
            |> allow_upload(:comment_images,
              accept: ~w(.jpg .jpeg .png .gif .webp),
              max_entries: 4,
@@ -159,12 +163,15 @@ defmodule MonAppWeb.PublicProfileLive do
           <div class="p-5 sm:p-6">
             <div class="flex flex-col sm:flex-row items-center gap-5">
               <!-- Avatar -->
-              <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-primary grid place-items-center ring-4 ring-base-200 shrink-0">
-                <%= if @profile_user.avatar do %>
-                  <img src={"/uploads/avatars/#{@profile_user.avatar}"} alt="Avatar" class="w-full h-full object-cover" />
-                <% else %>
-                  <span class="text-primary-content text-3xl sm:text-4xl font-bold leading-none">{String.first(@profile_user.name)}</span>
-                <% end %>
+              <div class="relative shrink-0">
+                <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-primary grid place-items-center ring-4 ring-base-200">
+                  <%= if @profile_user.avatar do %>
+                    <img src={"/uploads/avatars/#{@profile_user.avatar}"} alt="Avatar" class="w-full h-full object-cover" />
+                  <% else %>
+                    <span class="text-primary-content text-3xl sm:text-4xl font-bold leading-none">{String.first(@profile_user.name)}</span>
+                  <% end %>
+                </div>
+                <span :if={@profile_online} class="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-green-500 border-[3px] border-base-100"></span>
               </div>
 
               <!-- User Info -->
@@ -190,6 +197,9 @@ defmodule MonAppWeb.PublicProfileLive do
                     {@profile_user.location}
                   </span>
                   <span :if={@profile_user.looking_for && @profile_user.looking_for != "any"} class="inline-flex items-center gap-1 px-2.5 py-1 bg-pink-500/10 rounded-full text-xs text-pink-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                     {MonApp.Accounts.User.looking_for_label(@profile_user.looking_for)}
                   </span>
                   <span :if={@profile_user.nationality} class="inline-flex items-center gap-1 px-2.5 py-1 bg-base-200/60 rounded-full text-xs text-base-content/60">
@@ -223,8 +233,34 @@ defmodule MonAppWeb.PublicProfileLive do
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex gap-2 mt-4 justify-center sm:justify-start">
+            <div class="flex items-center gap-2 mt-4 justify-center sm:justify-start">
               <.friendship_actions status={@friendship_status} friendship={@friendship} profile_user={@profile_user} />
+              <!-- More menu (block/report) -->
+              <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v.01M12 12v.01M12 19v.01" />
+                  </svg>
+                </div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-xl z-[1] w-52 p-1.5 shadow-xl border border-base-200 mt-1">
+                  <li>
+                    <button phx-click="toggle_block" class="text-sm flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                      </svg>
+                      {if @is_blocked, do: "Débloquer", else: "Bloquer"}
+                    </button>
+                  </li>
+                  <li>
+                    <button phx-click="open_report_modal" class="text-sm text-error flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                      </svg>
+                      Signaler
+                    </button>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -333,6 +369,36 @@ defmodule MonAppWeb.PublicProfileLive do
         confirm_event="confirm_remove_friend"
         on_cancel="cancel_remove_friend"
       />
+
+      <!-- Report Modal -->
+      <div :if={@show_report_modal} class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center px-4">
+        <div class="bg-base-100 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden" phx-click-away="close_report_modal">
+          <div class="p-5">
+            <h3 class="text-lg font-bold text-base-content">Signaler @{@profile_user.name}</h3>
+            <p class="text-sm text-base-content/50 mt-1">Choisissez la raison du signalement</p>
+
+            <div class="space-y-1.5 mt-4">
+              <button
+                :for={reason <- MonApp.Social.UserReport.reasons()}
+                type="button"
+                phx-click="submit_report"
+                phx-value-reason={reason}
+                class="w-full text-left px-4 py-2.5 rounded-xl text-sm hover:bg-base-200/50 transition-colors flex items-center justify-between"
+              >
+                <span>{MonApp.Social.UserReport.reason_label(reason)}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="border-t border-base-200">
+            <button phx-click="close_report_modal" class="w-full py-3 text-sm font-medium text-base-content/50 hover:bg-base-200/50 transition-colors">
+              Annuler
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
     """
   end
@@ -546,6 +612,57 @@ defmodule MonAppWeb.PublicProfileLive do
   @impl true
   def handle_event("close_chat_drawer", _params, socket) do
     {:noreply, assign(socket, :chat_drawer_open, false)}
+  end
+
+  # ============== BLOCK / REPORT ==============
+
+  @impl true
+  def handle_event("toggle_block", _, socket) do
+    current_user = socket.assigns.current_user
+    profile_user = socket.assigns.profile_user
+
+    if socket.assigns.is_blocked do
+      Social.unblock_user(current_user.id, profile_user.id)
+      {:noreply,
+       socket
+       |> assign(:is_blocked, false)
+       |> put_flash(:info, "#{profile_user.name} a été débloqué")}
+    else
+      Social.block_user(current_user.id, profile_user.id)
+      {:noreply,
+       socket
+       |> assign(:is_blocked, true)
+       |> assign(:friendship_status, :none)
+       |> assign(:friendship, nil)
+       |> put_flash(:info, "#{profile_user.name} a été bloqué")}
+    end
+  end
+
+  @impl true
+  def handle_event("open_report_modal", _, socket) do
+    {:noreply, assign(socket, :show_report_modal, true)}
+  end
+
+  @impl true
+  def handle_event("close_report_modal", _, socket) do
+    {:noreply, assign(socket, :show_report_modal, false)}
+  end
+
+  @impl true
+  def handle_event("submit_report", %{"reason" => reason}, socket) do
+    current_user = socket.assigns.current_user
+    profile_user = socket.assigns.profile_user
+
+    case Social.report_user(current_user.id, profile_user.id, reason) do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:show_report_modal, false)
+         |> put_flash(:info, "Signalement envoyé. Merci pour votre vigilance.")}
+
+      {:error, _} ->
+        {:noreply, put_flash(socket, :error, "Erreur lors du signalement")}
+    end
   end
 
   # ============== TOAST EVENTS ==============
