@@ -513,6 +513,25 @@ defmodule MonAppWeb.ProfileLive do
                 </div>
               </div>
 
+              <!-- Legal -->
+              <div class="pt-4 mt-2 border-t border-base-200">
+                <h4 class="text-sm font-semibold text-base-content/70 mb-2">Informations légales</h4>
+                <div class="flex gap-2">
+                  <a href="/terms" class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-base-200/50 hover:bg-base-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span class="text-xs text-base-content/60">CGU</span>
+                  </a>
+                  <a href="/privacy" class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-base-200/50 hover:bg-base-200 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-base-content/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span class="text-xs text-base-content/60">Confidentialité</span>
+                  </a>
+                </div>
+              </div>
+
               <!-- Account Deletion -->
               <div class="pt-4 mt-2 border-t border-base-200">
                 <button
@@ -773,6 +792,7 @@ defmodule MonAppWeb.ProfileLive do
           dest = Path.join(Accounts.avatars_dir(), filename)
           File.mkdir_p!(Path.dirname(dest))
           File.cp!(path, dest)
+          MonApp.ImageCompressor.compress_avatar(dest)
           {:ok, filename}
         end)
 

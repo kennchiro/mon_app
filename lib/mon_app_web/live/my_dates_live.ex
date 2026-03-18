@@ -513,6 +513,7 @@ defmodule MonAppWeb.MyDatesLive do
       filename = "date_#{post_id}_#{System.unique_integer([:positive])}#{ext}"
       dest = Path.join(Blog.uploads_dir(), filename)
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
       Blog.create_post_image(%{
         filename: filename,
         original_filename: entry.client_name,

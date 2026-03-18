@@ -1436,6 +1436,7 @@ defmodule MonAppWeb.PostsLive do
 
       # Copier le fichier
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
 
       # Créer l'entrée en base
       Blog.create_post_image(%{
@@ -1459,6 +1460,7 @@ defmodule MonAppWeb.PostsLive do
 
       # Copier le fichier
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
 
       # Créer l'entrée en base
       Blog.create_comment_image(%{
@@ -1486,6 +1488,7 @@ defmodule MonAppWeb.PostsLive do
       dest = Path.join(Blog.uploads_dir(), filename)
 
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
 
       Blog.create_post_image(%{
         filename: filename,

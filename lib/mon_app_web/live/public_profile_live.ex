@@ -1469,6 +1469,7 @@ defmodule MonAppWeb.PublicProfileLive do
       dest = Path.join(Blog.comment_uploads_dir(), filename)
 
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
 
       Blog.create_comment_image(%{
         filename: filename,

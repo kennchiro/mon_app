@@ -34,6 +34,17 @@ defmodule MonAppWeb.Router do
     get "/chat", PageController, :redirect_to_conversations
   end
 
+  # ============== PAGES LÉGALES (publiques, pas besoin d'auth) ==============
+
+  live_session :public do
+    scope "/", MonAppWeb do
+      pipe_through :browser
+
+      live "/terms", TermsLive
+      live "/privacy", PrivacyLive
+    end
+  end
+
   # ============== AUTH LIVEVIEW (guests only) ==============
 
   live_session :guest,

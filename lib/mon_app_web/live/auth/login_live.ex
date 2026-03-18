@@ -123,6 +123,12 @@ defmodule MonAppWeb.LoginLive do
             </.link>
           </p>
         </div>
+
+        <p class="text-center text-base-content/30 text-xs mt-4">
+          <a href="/terms" class="hover:text-base-content/50 transition-colors">CGU</a>
+          <span class="mx-1">·</span>
+          <a href="/privacy" class="hover:text-base-content/50 transition-colors">Confidentialité</a>
+        </p>
       </div>
     </div>
     """

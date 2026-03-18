@@ -14,21 +14,18 @@ defmodule MonApp.Social do
 
   @doc "Récupère tous les amis acceptés d'un user"
   def list_friends(user_id) do
-    # Un ami peut être dans user_id OU friend_id (relation bidirectionnelle)
-    query =
-      from f in Friendship,
+    # Single query: get friend IDs then batch load users
+    friend_ids =
+      from(f in Friendship,
         where: f.status == "accepted",
         where: f.user_id == ^user_id or f.friend_id == ^user_id,
-        preload: [:user, :friend]
+        select: fragment("CASE WHEN ? = ? THEN ? ELSE ? END",
+          f.user_id, ^user_id, f.friend_id, f.user_id)
+      )
+      |> Repo.all()
 
-    Repo.all(query)
-    |> Enum.map(fn friendship ->
-      if friendship.user_id == user_id do
-        friendship.friend
-      else
-        friendship.user
-      end
-    end)
+    from(u in User, where: u.id in ^friend_ids, order_by: u.name)
+    |> Repo.all()
   end
 
   @doc "Récupère les demandes d'amis en attente (reçues)"

@@ -1002,6 +1002,7 @@ defmodule MonAppWeb.ConversationsLive do
 
       # Copier le fichier
       File.cp!(path, dest)
+      MonApp.ImageCompressor.compress(dest)
 
       # Créer l'entrée en base
       Chat.create_message_attachment(%{

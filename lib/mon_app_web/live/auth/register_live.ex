@@ -14,7 +14,8 @@ defmodule MonAppWeb.RegisterLive do
      |> assign(:trigger_submit, false)
      |> assign(:login_email, "")
      |> assign(:login_password, "")
-     |> assign(:show_info, false)}
+     |> assign(:show_info, false)
+     |> assign(:terms_accepted, false)}
   end
 
   def render(assigns) do
@@ -152,7 +153,24 @@ defmodule MonAppWeb.RegisterLive do
               </div>
             </div>
 
-            <button type="submit" class="btn w-full h-12 text-base font-semibold bg-base-content text-base-100 hover:bg-pink-500 hover:text-white border-none transition-all duration-300 mt-2">
+            <label class="flex items-start gap-2.5 mt-4 cursor-pointer">
+              <input
+                type="checkbox"
+                name="user[terms]"
+                value="true"
+                checked={@terms_accepted}
+                required
+                class="checkbox checkbox-sm mt-0.5 shrink-0"
+              />
+              <span class="text-xs text-base-content/50 leading-relaxed">
+                J'accepte les
+                <a href="/terms" target="_blank" class="underline text-base-content/70 hover:text-pink-500">Conditions d'utilisation</a>
+                et la
+                <a href="/privacy" target="_blank" class="underline text-base-content/70 hover:text-pink-500">Politique de confidentialité</a>
+              </span>
+            </label>
+
+            <button type="submit" class="btn w-full h-12 text-base font-semibold bg-base-content text-base-100 hover:bg-pink-500 hover:text-white border-none transition-all duration-300 mt-3">
               Créer mon compte
             </button>
           </.form>
@@ -164,6 +182,12 @@ defmodule MonAppWeb.RegisterLive do
             </.link>
           </p>
         </div>
+
+        <p class="text-center text-base-content/30 text-xs mt-4">
+          <a href="/terms" class="hover:text-base-content/50 transition-colors">CGU</a>
+          <span class="mx-1">·</span>
+          <a href="/privacy" class="hover:text-base-content/50 transition-colors">Confidentialité</a>
+        </p>
       </div>
 
       <!-- Info Modal -->
@@ -256,12 +280,17 @@ defmodule MonAppWeb.RegisterLive do
   end
 
   def handle_event("validate", %{"user" => user_params}, socket) do
+    terms = Map.get(user_params, "terms", "false") == "true"
+
     changeset =
       %User{}
       |> User.registration_changeset(user_params)
       |> Map.put(:action, :validate)
 
-    {:noreply, assign(socket, :form, to_form(changeset))}
+    {:noreply,
+     socket
+     |> assign(:form, to_form(changeset))
+     |> assign(:terms_accepted, terms)}
   end
 
   def handle_event("save", %{"user" => user_params}, socket) do
