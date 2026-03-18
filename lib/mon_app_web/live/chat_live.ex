@@ -66,7 +66,7 @@ defmodule MonAppWeb.ChatLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="h-screen flex flex-col bg-base-100">
+    <div class="fixed inset-0 flex flex-col bg-base-100">
       <!-- Header -->
       <.chat_header
         other_user={@other_user}

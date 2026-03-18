@@ -1098,7 +1098,7 @@ defmodule MonAppWeb.ChatComponents do
 
   def chat_input(assigns) do
     ~H"""
-    <div class="bg-base-100 border-t border-base-200/60">
+    <div class="bg-base-100 border-t border-base-200/60 shrink-0">
       <!-- Reply preview -->
       <.reply_preview :if={@reply_message} reply_message={@reply_message} />
 
@@ -1107,7 +1107,7 @@ defmodule MonAppWeb.ChatComponents do
         phx-submit="send_message"
         phx-change="validate_chat"
         phx-target={@phx_target}
-        class={if @compact, do: "px-2 py-1.5", else: "px-3 py-2 safe-area-bottom"}
+        class={if @compact, do: "px-2 pt-2 pb-1", else: "px-3 pt-2 pb-1"}
       >
         <!-- Preview des images à uploader -->
         <div :if={@uploads && @uploads.chat_images.entries != []} class="mb-3 px-1">
@@ -1155,9 +1155,9 @@ defmodule MonAppWeb.ChatComponents do
         <% end %>
 
         <!-- Input container -->
-        <div class="flex items-end gap-2">
+        <div class="flex items-center gap-2">
           <!-- Boutons gauche (photo + emoji) -->
-          <div class="flex items-center gap-0.5 pb-1.5">
+          <div class="flex items-center gap-0.5">
             <!-- Bouton photo/galerie -->
             <label
               class={"relative flex items-center justify-center w-9 h-9 rounded-full cursor-pointer transition-all duration-200 " <>
@@ -1195,7 +1195,7 @@ defmodule MonAppWeb.ChatComponents do
           </div>
 
           <!-- Bouton envoyer -->
-          <div class={if @compact, do: "pb-0.5", else: "pb-1"}>
+          <div>
             <button
               type="submit"
               class={"flex items-center justify-center rounded-full transition-all duration-200 " <>
@@ -1381,9 +1381,7 @@ defmodule MonAppWeb.ChatComponents do
         </div>
 
         <!-- Input -->
-        <div class="safe-area-bottom md:pb-1">
-          <.chat_input form={@form} uploads={@uploads} reply_message={@reply_message} compact={true} />
-        </div>
+        <.chat_input form={@form} uploads={@uploads} reply_message={@reply_message} compact={true} />
       </div>
 
       <!-- Modal preview image -->

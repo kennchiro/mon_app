@@ -273,6 +273,7 @@ html, body {
     width: 100%;
   }
 
+
   /* Animation slide-up pour mobile */
   @keyframes slide-up {
     from {
