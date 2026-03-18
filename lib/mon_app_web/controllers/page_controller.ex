@@ -5,7 +5,7 @@ defmodule MonAppWeb.PageController do
     if conn.assigns[:current_user] do
       redirect(conn, to: ~p"/posts")
     else
-      redirect(conn, to: ~p"/login")
+      redirect(conn, to: ~p"/welcome")
     end
   end
 

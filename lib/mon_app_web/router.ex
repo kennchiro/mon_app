@@ -40,6 +40,7 @@ defmodule MonAppWeb.Router do
     scope "/", MonAppWeb do
       pipe_through :browser
 
+      live "/welcome", LandingLive
       live "/terms", TermsLive
       live "/privacy", PrivacyLive
     end
