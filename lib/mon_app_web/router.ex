@@ -41,6 +41,7 @@ defmodule MonAppWeb.Router do
       pipe_through :browser
 
       live "/welcome", LandingLive
+      live "/install", InstallLive
       live "/terms", TermsLive
       live "/privacy", PrivacyLive
     end
