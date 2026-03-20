@@ -36,7 +36,6 @@ defmodule MonAppWeb.Navbar do
   attr :unread_messages_count, :integer, default: 0
   attr :notifications, :list, default: []
   attr :unread_notifications_count, :integer, default: 0
-
   def navbar(assigns) do
     ~H"""
     <!-- ===== TOP HEADER (mobile + desktop) ===== -->

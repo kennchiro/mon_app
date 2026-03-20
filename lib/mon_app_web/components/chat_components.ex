@@ -1299,7 +1299,7 @@ defmodule MonAppWeb.ChatComponents do
       />
 
       <!-- Chat Panel - Full screen mobile, flottant desktop aligné sous la navbar -->
-      <div class="fixed inset-0 z-50 md:inset-auto md:right-4 md:top-[4.5rem] md:bottom-6 md:w-96 flex flex-col bg-base-100 shadow-2xl md:rounded-2xl md:overflow-hidden md:animate-slide-in-right">
+      <div class="fixed top-0 left-0 right-0 z-50 h-dvh md:inset-auto md:h-auto md:right-4 md:top-[4.5rem] md:bottom-6 md:w-96 flex flex-col bg-base-100 shadow-2xl md:rounded-2xl md:overflow-hidden md:animate-slide-in-right">
         <!-- Header -->
         <div class="border-b border-base-200 bg-base-100 safe-area-top md:safe-area-top-none md:rounded-t-2xl">
           <div class="flex items-center gap-3 px-4 py-3 min-h-[60px]">

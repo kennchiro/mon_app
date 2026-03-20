@@ -3,7 +3,6 @@ defmodule MonApp.Notifications do
 
   alias MonApp.Repo
   alias MonApp.Notifications.Notification
-
   @max_notifications 50
 
   def list_notifications(user_id, limit \\ @max_notifications) do
@@ -185,6 +184,8 @@ defmodule MonApp.Notifications do
       {:ok, :self}
     end
   end
+
+  # ============== PRIVATE ==============
 
   defp broadcast_notification(user_id, notification) do
     Phoenix.PubSub.broadcast(

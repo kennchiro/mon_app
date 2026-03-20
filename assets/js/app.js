@@ -290,7 +290,11 @@ const Hooks = {
           this.el.style.height = "auto"
           this.el.value = ""
           this.resize()
-          this.el.focus()
+          // Sur mobile, ne pas re-focus : ça re-déclenche le clavier
+          // et perturbe le layout (le clavier repousse l'input hors écran)
+          if (window.innerWidth >= 768) {
+            this.el.focus()
+          }
         }, 10)
       })
 
