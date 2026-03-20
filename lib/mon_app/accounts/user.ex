@@ -26,6 +26,7 @@ defmodule MonApp.Accounts.User do
 
     # Account management
     field :scheduled_deletion_at, :naive_datetime
+    field :role, :string, default: "user"
 
     # Champ virtuel (pas en DB)
     field :password, :string, virtual: true
@@ -38,6 +39,7 @@ defmodule MonApp.Accounts.User do
 
   @genders ["male", "female", "non_binary", "other"]
   @looking_for_options ["any", "male", "female", "non_binary", "friends"]
+  @roles ["user", "moderator", "admin"]
 
   @doc "Changeset pour modifier un user (sans password)"
   def changeset(user, attrs) do
@@ -64,6 +66,11 @@ defmodule MonApp.Accounts.User do
 
   def genders, do: @genders
   def looking_for_options, do: @looking_for_options
+  def roles, do: @roles
+
+  def admin?(%__MODULE__{role: role}), do: role in ["admin", "moderator"]
+  def super_admin?(%__MODULE__{role: "admin"}), do: true
+  def super_admin?(_), do: false
 
   def gender_label("male"), do: "Homme"
   def gender_label("female"), do: "Femme"
@@ -321,6 +328,13 @@ defmodule MonApp.Accounts.User do
   def deletion_changeset(user, attrs) do
     user
     |> cast(attrs, [:scheduled_deletion_at])
+  end
+
+  @doc "Changeset pour modifier le rôle (admin uniquement)"
+  def role_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:role])
+    |> validate_inclusion(:role, @roles, message: "rôle invalide")
   end
 
   # Hash le password avant insertion

@@ -11,6 +11,42 @@ defmodule MonAppWeb.Layouts do
   # and other static content.
   embed_templates "layouts/*"
 
+  @doc "Lien de navigation dans la sidebar admin"
+  attr :href, :string, required: true
+  attr :icon, :string, required: true
+  attr :label, :string, required: true
+  attr :current_path, :string, required: true
+  attr :badge, :integer, default: nil
+
+  def admin_nav_link(assigns) do
+    active =
+      cond do
+        assigns.href == "/admin" -> assigns.current_path == "/admin"
+        true -> String.starts_with?(assigns.current_path, assigns.href)
+      end
+
+    assigns = assign(assigns, :active, active)
+
+    ~H"""
+    <.link
+      href={@href}
+      class={[
+        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+        if(@active, do: "bg-pink-600 text-white", else: "text-gray-300 hover:bg-gray-800 hover:text-white")
+      ]}
+    >
+      <.icon name={@icon} class="w-5 h-5 shrink-0" />
+      <span class="flex-1">{@label}</span>
+      <span
+        :if={@badge && @badge > 0}
+        class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full"
+      >
+        {@badge}
+      </span>
+    </.link>
+    """
+  end
+
   @doc """
   Renders your app layout.
 

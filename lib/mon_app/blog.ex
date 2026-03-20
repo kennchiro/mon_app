@@ -198,6 +198,108 @@ defmodule MonApp.Blog do
     Repo.delete(post)
   end
 
+  # ============== ADMIN ==============
+
+  @doc "Liste les posts pour l'admin avec pagination et filtres"
+  def list_posts_admin(page \\ 1, per_page \\ 25, opts \\ []) do
+    search = Keyword.get(opts, :search)
+    post_type = Keyword.get(opts, :post_type)
+    visibility = Keyword.get(opts, :visibility)
+    sort = Keyword.get(opts, :sort, "newest")
+
+    order =
+      case sort do
+        "oldest" -> [asc: :inserted_at]
+        "title" -> [asc: :title]
+        _ -> [desc: :inserted_at]
+      end
+
+    query =
+      from p in Post,
+        preload: [:user],
+        order_by: ^order
+
+    query =
+      if search && search != "" do
+        term = "%#{search}%"
+        from p in query, where: ilike(p.title, ^term) or ilike(p.body, ^term)
+      else
+        query
+      end
+
+    query =
+      if post_type && post_type != "" do
+        from p in query, where: p.post_type == ^post_type
+      else
+        query
+      end
+
+    query =
+      if visibility && visibility != "" do
+        from p in query, where: p.visibility == ^visibility
+      else
+        query
+      end
+
+    total = Repo.aggregate(query, :count, :id)
+    offset = (page - 1) * per_page
+    posts = Repo.all(from q in query, limit: ^per_page, offset: ^offset)
+
+    %{posts: posts, total: total, page: page, per_page: per_page, total_pages: ceil(total / per_page)}
+  end
+
+  @doc "Récupère un post avec tout preloadé pour la fiche admin"
+  def get_post_admin(id) do
+    post = Repo.get(Post, id)
+
+    if post do
+      Repo.preload(post, [
+        :user,
+        :images,
+        :shares,
+        reactions: [],
+        date_applications: [:user],
+        comments: {comments_query(), [:user, replies: [:user]]}
+      ])
+    end
+  end
+
+  @doc "Compte les posts par type"
+  def count_posts_by_type do
+    from(p in Post, group_by: p.post_type, select: {p.post_type, count(p.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Supprime un post + ses images physiques"
+  def admin_delete_post(%Post{} = post) do
+    post_with_images = Repo.preload(post, :images)
+    Enum.each(post_with_images.images, fn img ->
+      path = Path.join(["priv/static/uploads/posts", img.filename])
+      File.rm(path)
+    end)
+    Repo.delete(post)
+  end
+
+  @doc "Change la visibilité d'un post"
+  def update_post_visibility(%Post{} = post, visibility) do
+    post
+    |> Ecto.Changeset.change(%{visibility: visibility})
+    |> Repo.update()
+  end
+
+  @doc "Change le statut d'une date"
+  def update_date_status(%Post{} = post, status) do
+    post
+    |> Ecto.Changeset.change(%{date_status: status})
+    |> Repo.update()
+  end
+
+  @doc "Supprime un commentaire"
+  def admin_delete_comment(%Comment{} = comment) do
+    Repo.delete(comment)
+  end
+
   # ============== IMAGES ==============
 
   @doc "Crée une image pour un post"

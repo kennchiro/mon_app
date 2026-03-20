@@ -18,6 +18,9 @@ defmodule MonApp.Social.UserReport do
     belongs_to :reporter, User
     belongs_to :reported, User
     belongs_to :post, Post
+    belongs_to :resolved_by, User
+    field :resolved_at, :naive_datetime
+    field :resolution_note, :string
     timestamps()
   end
 

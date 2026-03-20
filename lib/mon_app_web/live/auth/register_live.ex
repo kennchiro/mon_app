@@ -74,7 +74,7 @@ defmodule MonAppWeb.RegisterLive do
                   type="text"
                   name="user[name]"
                   value={@form[:name].value}
-                  class={"input w-full pl-11 h-12 bg-base-200/50 border border-base-300 focus:border-pink-400 focus:outline-none transition-all #{if @form[:name].errors != [], do: "border-error"}"}
+                  class={"w-full pl-11 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all #{if @form[:name].errors != [], do: "border-red-400 bg-red-50", else: "border-gray-300"}"}
                   placeholder="ton_pseudo"
                   phx-debounce="300"
                   autocomplete="username"
@@ -106,7 +106,7 @@ defmodule MonAppWeb.RegisterLive do
                   type="email"
                   name="user[email]"
                   value={@form[:email].value}
-                  class={"input w-full pl-11 h-12 bg-base-200/50 border border-base-300 focus:border-pink-400 focus:outline-none transition-all #{if @form[:email].errors != [], do: "border-error"}"}
+                  class={"w-full pl-11 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all #{if @form[:email].errors != [], do: "border-red-400 bg-red-50", else: "border-gray-300"}"}
                   placeholder="ton@email.com"
                   phx-debounce="300"
                   autocomplete="email"
@@ -127,7 +127,7 @@ defmodule MonAppWeb.RegisterLive do
                   type={if @show_password, do: "text", else: "password"}
                   name="user[password]"
                   value={@form[:password].value}
-                  class={"input w-full pl-11 pr-12 h-12 bg-base-200/50 border border-base-300 focus:border-pink-400 focus:outline-none transition-all #{if @form[:password].errors != [], do: "border-error"}"}
+                  class={"w-full pl-11 pr-12 py-3 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all #{if @form[:password].errors != [], do: "border-red-400 bg-red-50", else: "border-gray-300"}"}
                   placeholder="6 caractères minimum"
                   phx-debounce="300"
                   autocomplete="new-password"
@@ -160,7 +160,7 @@ defmodule MonAppWeb.RegisterLive do
                 value="true"
                 checked={@terms_accepted}
                 required
-                class="checkbox checkbox-sm mt-0.5 shrink-0"
+                class="w-4 h-4 mt-0.5 shrink-0 rounded border-gray-300 text-pink-600 focus:ring-pink-500 accent-pink-600"
               />
               <span class="text-xs text-base-content/50 leading-relaxed">
                 J'accepte les
@@ -170,7 +170,7 @@ defmodule MonAppWeb.RegisterLive do
               </span>
             </label>
 
-            <button type="submit" class="btn w-full h-12 text-base font-semibold bg-base-content text-base-100 hover:bg-pink-500 hover:text-white border-none transition-all duration-300 mt-3">
+            <button type="submit" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-3 px-4 rounded-lg text-sm transition-colors mt-3">
               Créer mon compte
             </button>
           </.form>

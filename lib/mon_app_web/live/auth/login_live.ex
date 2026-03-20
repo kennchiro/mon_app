@@ -70,7 +70,7 @@ defmodule MonAppWeb.LoginLive do
                   type="email"
                   name="email"
                   value={@email}
-                  class="input w-full pl-11 h-12 bg-base-200/50 border border-base-300 focus:border-pink-400 focus:outline-none transition-all"
+                  class="w-full pl-11 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="ton@email.com"
                   phx-debounce="300"
                   autocomplete="email"
@@ -90,7 +90,7 @@ defmodule MonAppWeb.LoginLive do
                   type={if @show_password, do: "text", else: "password"}
                   name="password"
                   value={@password}
-                  class="input w-full pl-11 pr-12 h-12 bg-base-200/50 border border-base-300 focus:border-pink-400 focus:outline-none transition-all"
+                  class="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all"
                   placeholder="Ton mot de passe"
                   autocomplete="current-password"
                   required
@@ -111,7 +111,7 @@ defmodule MonAppWeb.LoginLive do
               </div>
             </div>
 
-            <button type="submit" class="btn w-full h-12 text-base font-semibold bg-base-content text-base-100 hover:bg-pink-500 hover:text-white border-none transition-all duration-300 mt-2">
+            <button type="submit" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-medium py-3 px-4 rounded-lg text-sm transition-colors mt-2">
               Se connecter
             </button>
           </.form>

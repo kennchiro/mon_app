@@ -1,0 +1,72 @@
+<div class="min-h-screen flex">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-gray-900 text-white flex flex-col fixed inset-y-0 left-0 z-50">
+    <!-- Logo -->
+    <div class="flex items-center gap-3 px-6 py-5 border-b border-gray-700">
+      <div class="w-8 h-8 bg-pink-500 rounded-lg flex items-center justify-center text-white font-bold text-sm">D</div>
+      <div>
+        <p class="font-semibold text-sm">DateApp</p>
+        <p class="text-xs text-gray-400">Administration</p>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Général</p>
+
+      <.admin_nav_link href="/admin" icon="hero-squares-2x2" label="Dashboard" current_path={@current_path} />
+      <.admin_nav_link href="/admin/users" icon="hero-users" label="Utilisateurs" current_path={@current_path} />
+      <.admin_nav_link href="/admin/posts" icon="hero-document-text" label="Posts" current_path={@current_path} />
+      <.admin_nav_link href="/admin/reports" icon="hero-flag" label="Reports" current_path={@current_path} badge={@pending_reports_count} />
+
+      <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">Analyses</p>
+
+      <.admin_nav_link href="/admin/analytics" icon="hero-chart-bar" label="Analytics" current_path={@current_path} />
+
+      <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-6">Système</p>
+
+      <.admin_nav_link href="/admin/settings" icon="hero-cog-6-tooth" label="Paramètres" current_path={@current_path} />
+    </nav>
+
+    <!-- Admin user info -->
+    <div class="border-t border-gray-700 px-4 py-3">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-pink-500 flex items-center justify-center text-white text-sm font-semibold">
+          {String.first(@current_admin.name) |> String.upcase()}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-white truncate">{@current_admin.name}</p>
+          <p class="text-xs text-gray-400 capitalize">{@current_admin.role}</p>
+        </div>
+        <.link href="/admin/logout" method="delete" class="text-gray-400 hover:text-white" title="Déconnexion">
+          <.icon name="hero-arrow-right-on-rectangle" class="w-4 h-4" />
+        </.link>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="flex-1 ml-64 flex flex-col min-h-screen">
+    <!-- Top bar -->
+    <header class="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between sticky top-0 z-40">
+      <div>
+        <h1 class="text-xl font-semibold text-gray-900">{assigns[:page_title] || "Dashboard"}</h1>
+      </div>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-gray-500">
+          {Calendar.strftime(DateTime.utc_now(), "%d %b %Y")}
+        </span>
+      </div>
+    </header>
+
+    <!-- Flash messages -->
+    <div class="px-8 pt-4">
+      <.flash_group flash={@flash} />
+    </div>
+
+    <!-- Page content -->
+    <main class="flex-1 px-8 py-6">
+      {@inner_content}
+    </main>
+  </div>
+</div>

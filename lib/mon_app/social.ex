@@ -369,4 +369,98 @@ defmodule MonApp.Social do
     })
     |> Repo.insert()
   end
+
+  # ============== ADMIN REPORTS ==============
+
+  @doc "Liste les reports avec pagination et filtres"
+  def list_reports_admin(page \\ 1, per_page \\ 25, opts \\ []) do
+    status = Keyword.get(opts, :status)
+    report_type = Keyword.get(opts, :report_type)
+    sort = Keyword.get(opts, :sort, "newest")
+
+    order = if sort == "oldest", do: [asc: :inserted_at], else: [desc: :inserted_at]
+
+    query =
+      from r in UserReport,
+        preload: [:reporter, :reported, :post, :resolved_by],
+        order_by: ^order
+
+    query =
+      if status && status != "" do
+        from r in query, where: r.status == ^status
+      else
+        query
+      end
+
+    query =
+      if report_type && report_type != "" do
+        from r in query, where: r.report_type == ^report_type
+      else
+        query
+      end
+
+    total = Repo.aggregate(query, :count, :id)
+    offset = (page - 1) * per_page
+    reports = Repo.all(from q in query, limit: ^per_page, offset: ^offset)
+
+    %{reports: reports, total: total, page: page, per_page: per_page, total_pages: ceil(total / per_page)}
+  end
+
+  @doc "Récupère un report par ID avec tout préchargé"
+  def get_report_admin(id) do
+    case Repo.get(UserReport, id) do
+      nil -> nil
+      r -> Repo.preload(r, [:reporter, :reported, :post, :resolved_by])
+    end
+  end
+
+  @doc "Résout un report"
+  def resolve_report(%UserReport{} = report, admin_id, note \\ nil) do
+    report
+    |> Ecto.Changeset.change(%{
+      status: "resolved",
+      resolved_by_id: admin_id,
+      resolved_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+      resolution_note: note
+    })
+    |> Repo.update()
+  end
+
+  @doc "Rejette un report (dismiss)"
+  def dismiss_report(%UserReport{} = report, admin_id, note \\ nil) do
+    report
+    |> Ecto.Changeset.change(%{
+      status: "dismissed",
+      resolved_by_id: admin_id,
+      resolved_at: NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second),
+      resolution_note: note
+    })
+    |> Repo.update()
+  end
+
+  @doc "Remet un report en pending"
+  def reopen_report(%UserReport{} = report) do
+    report
+    |> Ecto.Changeset.change(%{
+      status: "pending",
+      resolved_by_id: nil,
+      resolved_at: nil,
+      resolution_note: nil
+    })
+    |> Repo.update()
+  end
+
+  @doc "Stats des reports par statut"
+  def report_stats_by_status do
+    from(r in UserReport, group_by: r.status, select: {r.status, count(r.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Stats des reports par type"
+  def report_stats_by_type do
+    from(r in UserReport, group_by: r.report_type, select: {r.report_type, count(r.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
 end

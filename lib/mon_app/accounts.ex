@@ -158,6 +158,143 @@ defmodule MonApp.Accounts do
     max(0, div(diff, 86400))
   end
 
+  # ============== ADMIN ==============
+
+  @doc "Liste les users avec pagination et filtres"
+  def list_users_paginated(page \\ 1, per_page \\ 50, opts \\ []) do
+    search = Keyword.get(opts, :search)
+    role = Keyword.get(opts, :role)
+    sort = Keyword.get(opts, :sort, "newest")
+
+    order =
+      case sort do
+        "oldest" -> [asc: :inserted_at]
+        "name" -> [asc: :name]
+        _ -> [desc: :inserted_at]
+      end
+
+    query = from u in User, order_by: ^order
+
+    query =
+      if search && search != "" do
+        term = "%#{search}%"
+        from u in query, where: ilike(u.name, ^term) or ilike(u.email, ^term)
+      else
+        query
+      end
+
+    query =
+      if role && role != "" do
+        from u in query, where: u.role == ^role
+      else
+        query
+      end
+
+    total = Repo.aggregate(query, :count, :id)
+    offset = (page - 1) * per_page
+    users = Repo.all(from q in query, limit: ^per_page, offset: ^offset)
+
+    %{users: users, total: total, page: page, per_page: per_page, total_pages: ceil(total / per_page)}
+  end
+
+  @doc "Change le mot de passe d'un admin"
+  def admin_change_password(%User{} = user, new_password) do
+    import Ecto.Changeset
+
+    user
+    |> cast(%{password: new_password}, [:password])
+    |> validate_length(:password, min: 6, max: 100, message: "6 caractères minimum")
+    |> then(fn cs ->
+      case get_change(cs, :password) do
+        nil -> cs
+        pwd -> put_change(cs, :password_hash, Bcrypt.hash_pwd_salt(pwd))
+      end
+    end)
+    |> Repo.update()
+  end
+
+  @doc "Liste les users avec un rôle admin ou moderator"
+  def list_admins do
+    from(u in User,
+      where: u.role in ["admin", "moderator"],
+      order_by: [asc: u.role, asc: u.name]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Change le rôle d'un user"
+  def update_user_role(%User{} = user, role) do
+    user
+    |> User.role_changeset(%{role: role})
+    |> Repo.update()
+  end
+
+  @doc "Supprime immédiatement un user (admin)"
+  def admin_delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
+
+  @doc "Compte total des users"
+  def count_users, do: Repo.aggregate(User, :count, :id)
+
+  @doc "Compte les nouveaux users depuis une date"
+  def count_new_users_since(datetime) do
+    from(u in User, where: u.inserted_at >= ^datetime)
+    |> Repo.aggregate(:count, :id)
+  end
+
+  @doc "Compte les users par rôle"
+  def count_users_by_role do
+    from(u in User, group_by: u.role, select: {u.role, count(u.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc "Stats agrégées d'un user pour l'admin"
+  def get_user_stats(user_id) do
+    alias MonApp.Blog.Post
+    alias MonApp.Social.Friendship
+    alias MonApp.Social.UserReport
+
+    posts_count =
+      from(p in Post, where: p.user_id == ^user_id)
+      |> Repo.aggregate(:count, :id)
+
+    friends_count =
+      from(f in Friendship,
+        where: f.status == "accepted",
+        where: f.user_id == ^user_id or f.friend_id == ^user_id
+      )
+      |> Repo.aggregate(:count, :id)
+
+    reports_received =
+      from(r in UserReport, where: r.reported_id == ^user_id)
+      |> Repo.aggregate(:count, :id)
+
+    reports_sent =
+      from(r in UserReport, where: r.reporter_id == ^user_id)
+      |> Repo.aggregate(:count, :id)
+
+    %{
+      posts: posts_count,
+      friends: friends_count,
+      reports_received: reports_received,
+      reports_sent: reports_sent
+    }
+  end
+
+  @doc "Reports reçus par un user (pour la fiche admin)"
+  def list_reports_against_user(user_id) do
+    alias MonApp.Social.UserReport
+
+    from(r in UserReport,
+      where: r.reported_id == ^user_id,
+      preload: [:reporter, :post],
+      order_by: [desc: r.inserted_at]
+    )
+    |> Repo.all()
+  end
+
   # ============== HELPERS ==============
 
   @doc "Retourne un changeset vide pour les formulaires"

@@ -2504,6 +2504,8 @@ defmodule MonAppWeb.PostComponents do
             :if={@is_owner && (@pending_count > 0 || @accepted_count > 0)}
             phx-click="view_date_applications"
             phx-value-id={@post.id}
+            phx-hook="ScrollLock"
+            id={"view-apps-btn-#{@post.id}"}
             class="w-full sm:w-auto bg-base-content text-base-100 px-6 py-2.5 rounded-xl font-bold hover:bg-pink-500 hover:text-white transition-all duration-300 shadow-md flex items-center justify-center gap-2 text-sm"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

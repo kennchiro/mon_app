@@ -401,6 +401,20 @@ const Hooks = {
     }
   },
 
+
+  // Gère le scroll lock sans perdre la position
+  ScrollRestore: {
+    mounted() {
+      this.handleEvent("restore_scroll", () => {
+        if (window._savedScrollY !== undefined) {
+          const y = window._savedScrollY
+          window._savedScrollY = undefined
+          requestAnimationFrame(() => window.scrollTo(0, y))
+        }
+      })
+    }
+  },
+
   // Simple scroll-to-bottom + clear input for chat drawer
   DrawerScrollBottom: {
     mounted() {

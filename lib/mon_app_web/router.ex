@@ -121,6 +121,47 @@ defmodule MonAppWeb.Router do
     delete "/posts/:id", PostController, :delete
   end
 
+  # ============== ADMIN ==============
+
+  # Login admin (guest only)
+  live_session :admin_guest,
+    root_layout: {MonAppWeb.Layouts, :admin_root},
+    on_mount: [{MonAppWeb.AdminAuth, :redirect_if_admin}] do
+    scope "/admin", MonAppWeb do
+      pipe_through :browser
+
+      live "/login", AdminLoginLive
+    end
+  end
+
+  # Session admin (controller)
+  scope "/admin", MonAppWeb do
+    pipe_through :browser
+
+    get "/session", AdminSessionController, :create
+    delete "/logout", AdminSessionController, :delete
+  end
+
+  # Pages admin protégées
+  live_session :admin,
+    root_layout: {MonAppWeb.Layouts, :admin_root},
+    layout: {MonAppWeb.Layouts, :admin},
+    on_mount: [{MonAppWeb.AdminAuth, :require_admin}] do
+    scope "/admin", MonAppWeb do
+      pipe_through :browser
+
+      live "/", AdminDashboardLive
+      live "/users", AdminUsersLive
+      live "/users/:id", AdminUserShowLive
+      live "/posts", AdminPostsLive
+      live "/posts/:id", AdminPostShowLive
+      live "/reports", AdminReportsLive
+      live "/reports/:id", AdminReportShowLive
+      live "/analytics", AdminAnalyticsLive
+      live "/settings", AdminSettingsLive
+    end
+  end
+
   # ============== DEV ROUTES ==============
 
   if Application.compile_env(:mon_app, :dev_routes) do

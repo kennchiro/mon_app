@@ -120,19 +120,12 @@ defmodule MonAppWeb.PostsLive do
 
   @impl true
   def render(assigns) do
-    # Vérifier si un modal est ouvert pour bloquer le scroll
-    modal_open? = assigns.show_post_modal || assigns.editing_post || assigns.viewing_post ||
-                  assigns.viewing_reactions_post || assigns.viewing_comment_reactions ||
-                  assigns.preview_image || assigns.sharing_post || assigns.show_date_modal ||
-                  assigns.applying_to_date || assigns.viewing_date_applications
-    assigns = assign(assigns, :modal_open?, modal_open?)
-
     ~H"""
-    <div class={"min-h-screen bg-base-200 overflow-x-hidden #{if @modal_open?, do: "overflow-hidden h-screen", else: ""}"}>
+    <div class="min-h-screen bg-base-200 overflow-x-hidden">
       <.navbar current_user={@current_user} current_path="/posts" pending_requests_count={@pending_requests_count} unread_messages_count={@unread_messages_count} notifications={@notifications} unread_notifications_count={@unread_notifications_count} />
       <.toast_popup toast={@toast} />
 
-      <main class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
+      <main id="posts-main" phx-hook="ScrollRestore" class="max-w-2xl mx-auto p-4 sm:p-6 pb-20 md:pb-6">
         <.post_form_trigger current_user={@current_user} />
         <.post_form_modal
           :if={@show_post_modal}
@@ -1762,7 +1755,8 @@ defmodule MonAppWeb.PostsLive do
     {:noreply,
      socket
      |> assign(:viewing_date_applications, nil)
-     |> assign(:date_applications, [])}
+     |> assign(:date_applications, [])
+     |> push_event("restore_scroll", %{})}
   end
 
   @impl true
