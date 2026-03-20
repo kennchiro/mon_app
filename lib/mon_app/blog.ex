@@ -120,6 +120,16 @@ defmodule MonApp.Blog do
         _ -> query
       end
 
+    # Exclure les posts date terminés depuis plus de 24h
+    cutoff = NaiveDateTime.add(NaiveDateTime.utc_now(), -24 * 3600)
+
+    query =
+      from p in query,
+        where:
+          p.post_type != "date" or
+          is_nil(p.date_datetime) or
+          p.date_datetime >= ^cutoff
+
     posts =
       query
       |> order_by(desc: :inserted_at)
