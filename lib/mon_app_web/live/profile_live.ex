@@ -31,7 +31,7 @@ defmodule MonAppWeb.ProfileLive do
       Phoenix.PubSub.subscribe(MonApp.PubSub, "user:#{user_id}")
     end
 
-    pending_count = length(Social.list_pending_requests(user_id))
+    pending_count = Social.count_pending_requests(user_id)
     unread_messages_count = Chat.count_total_unread(user_id)
     friends_count = Social.count_friends(user_id)
     dates_count = Blog.count_user_dates(user_id)

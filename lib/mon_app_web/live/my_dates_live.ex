@@ -35,7 +35,7 @@ defmodule MonAppWeb.MyDatesLive do
 
     my_dates = Blog.list_my_date_posts(user_id)
     my_applications = Blog.list_my_date_applications(user_id)
-    pending_count = length(Social.list_pending_requests(user_id))
+    pending_count = Social.count_pending_requests(user_id)
     unread_messages_count = Chat.count_total_unread(user_id)
     notifications = Notifications.list_notifications(user_id)
     unread_notifications_count = Notifications.count_unread(user_id)

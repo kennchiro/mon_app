@@ -37,7 +37,7 @@ defmodule MonAppWeb.PostsLive do
     end
 
     {posts, has_more?} = Blog.list_posts_for_user_paginated(user_id, 1, 20, post_type: "date")
-    pending_count = length(Social.list_pending_requests(user_id))
+    pending_count = Social.count_pending_requests(user_id)
     unread_messages_count = Chat.count_total_unread(user_id)
 
     {:ok,

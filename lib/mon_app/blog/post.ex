@@ -72,9 +72,24 @@ defmodule MonApp.Blog.Post do
     |> validate_number(:date_spots, greater_than: 0, less_than_or_equal_to: 20)
     |> validate_number(:date_age_min, greater_than_or_equal_to: 18, less_than_or_equal_to: 99)
     |> validate_number(:date_age_max, greater_than_or_equal_to: 18, less_than_or_equal_to: 99)
+    |> validate_date_in_future()
     |> put_change(:post_type, "date")
     |> copy_date_title_to_title()
     |> foreign_key_constraint(:user_id)
+  end
+
+  defp validate_date_in_future(changeset) do
+    case get_change(changeset, :date_datetime) do
+      nil ->
+        changeset
+
+      datetime ->
+        if DateTime.compare(datetime, DateTime.utc_now()) == :gt do
+          changeset
+        else
+          add_error(changeset, :date_datetime, "doit être dans le futur")
+        end
+    end
   end
 
   # Copie date_title dans title pour satisfaire la contrainte NOT NULL

@@ -33,7 +33,7 @@ defmodule MonAppWeb.ConversationsLive do
     conversations = Chat.list_conversations(user.id)
     online_users = Presence.list_online_users()
     unread_count = Chat.count_total_unread(user.id)
-    pending_count = length(Social.list_pending_requests(user.id))
+    pending_count = Social.count_pending_requests(user.id)
     friends = Social.list_friends(user.id)
 
     {:ok,
@@ -594,15 +594,6 @@ defmodule MonAppWeb.ConversationsLive do
     else
       {:noreply, assign(socket, :context_menu_message, nil)}
     end
-  end
-
-  @impl true
-  def handle_event("forward_message", %{"id" => _message_id}, socket) do
-    # TODO: Implémenter la fonctionnalité de transfert
-    {:noreply,
-     socket
-     |> assign(:context_menu_message, nil)
-     |> put_flash(:info, "Fonctionnalité de transfert bientôt disponible")}
   end
 
   # ============== DELETE MODAL EVENTS ==============

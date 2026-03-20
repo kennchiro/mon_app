@@ -51,7 +51,7 @@ defmodule MonAppWeb.PublicProfileLive do
           dates_count = Blog.count_user_dates(profile_user_id)
           posts_count = Blog.count_user_posts(profile_user_id)
           dates_by_category = Blog.count_user_dates_by_category(profile_user_id)
-          pending_count = length(Social.list_pending_requests(current_user.id))
+          pending_count = Social.count_pending_requests(current_user.id)
           unread_messages_count = Chat.count_total_unread(current_user.id)
 
           {date_posts, date_has_more} = Blog.list_user_date_posts_paginated(profile_user_id, 1)
@@ -1349,7 +1349,7 @@ defmodule MonAppWeb.PublicProfileLive do
 
   @impl true
   def handle_info({:friend_request_received, _}, socket) do
-    pending_count = length(Social.list_pending_requests(socket.assigns.current_user.id))
+    pending_count = Social.count_pending_requests(socket.assigns.current_user.id)
     {:noreply, assign(socket, :pending_requests_count, pending_count)}
   end
 

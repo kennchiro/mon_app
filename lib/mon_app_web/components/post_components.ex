@@ -2126,9 +2126,12 @@ defmodule MonAppWeb.PostComponents do
                     type="datetime-local"
                     name="date[date_datetime]"
                     value={format_datetime_local(@form[:date_datetime].value)}
-                    class="w-full pl-10 pr-3 py-3 bg-base-200/50 border border-base-300 rounded-xl text-sm focus:outline-none focus:border-base-content/30 transition-all"
+                    class={["w-full pl-10 pr-3 py-3 bg-base-200/50 border rounded-xl text-sm focus:outline-none focus:border-base-content/30 transition-all", if(@form[:date_datetime].errors != [], do: "border-error", else: "border-base-300")]}
                   />
                 </div>
+                <p :if={@form[:date_datetime].errors != []} class="text-error text-xs mt-1">
+                  La date {elem(hd(@form[:date_datetime].errors), 0)}
+                </p>
               </div>
             </div>
 

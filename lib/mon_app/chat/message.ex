@@ -30,7 +30,7 @@ defmodule MonApp.Chat.Message do
     message
     |> cast(attrs, [:body, :conversation_id, :sender_id, :status, :delivered_at, :seen_at, :reply_to_id])
     |> validate_required([:conversation_id, :sender_id])
-    |> validate_length(:body, max: 5000)
+    |> validate_length(:body, max: 2000)
     |> validate_inclusion(:status, @status_values)
     |> foreign_key_constraint(:conversation_id)
     |> foreign_key_constraint(:sender_id)

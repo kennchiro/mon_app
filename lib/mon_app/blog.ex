@@ -80,7 +80,7 @@ defmodule MonApp.Blog do
     last_run = :persistent_term.get(:last_expire_dates, 0)
     now_unix = System.system_time(:second)
 
-    if now_unix - last_run > 3600 do
+    if now_unix - last_run > 300 do
       :persistent_term.put(:last_expire_dates, now_unix)
       now = NaiveDateTime.utc_now()
 
@@ -101,7 +101,7 @@ defmodule MonApp.Blog do
     blocked_ids = Social.list_blocked_ids(user_id)
     post_type_filter = Keyword.get(opts, :post_type, "all")
 
-    # Auto-expire past dates (throttled: 1x/hour)
+    # Auto-expire past dates (throttled: 1x/5min)
     expire_past_dates()
 
     query =
@@ -760,9 +760,15 @@ defmodule MonApp.Blog do
 
   @doc "Postuler à un date"
   def apply_to_date(user_id, post_id, message \\ nil) do
-    %DateApplication{}
-    |> DateApplication.changeset(%{user_id: user_id, post_id: post_id, message: message})
-    |> Repo.insert()
+    post = Repo.get(Post, post_id)
+
+    if post && post.user_id == user_id do
+      {:error, :cannot_apply_to_own_post}
+    else
+      %DateApplication{}
+      |> DateApplication.changeset(%{user_id: user_id, post_id: post_id, message: message})
+      |> Repo.insert()
+    end
   end
 
   @doc "Accepter une candidature + auto-ami + auto-full + auto-chat"
